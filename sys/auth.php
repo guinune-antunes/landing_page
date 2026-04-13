@@ -1,45 +1,64 @@
 <?php
-// 1. Segura qualquer saída acidental
 ob_start();
-
-// 2. Inicia a sessão
 session_start();
-
-// 3. Inclui a conexão
 require 'conexao.php';
 
-// --- LÓGICA DE LOGIN ---
 $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-$senha = $_POST['senha'];
+$senha_digitada = $_POST['senha'] ?? '';
 
-if ($email && $senha) {
-    $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = ?");
-    $stmt->execute([$email]);
-    $usuario = $stmt->fetch();
+try {
+    if ($email && $senha_digitada) {
+        // 1. ADICIONADO: Coluna 'precisa_mudar_senha' incluída na busca
+        $stmt = $pdo->prepare("SELECT id, nome, email, senha_hash, cargo, instituicao_id, precisa_mudar_senha FROM usuarios WHERE email = ? AND ativo = 1");
+        $stmt->execute([$email]);
+        $usuario = $stmt->fetch();
 
-    if ($usuario && password_verify($senha, $usuario['senha'])) {
-        
-        // Login Sucesso: Salva dados na sessão
-        $_SESSION['usuario_id'] = $usuario['id'];
-        $_SESSION['usuario_nome'] = $usuario['nome'];
-        $_SESSION['usuario_cargo'] = $usuario['cargo'];
-        $_SESSION['instituicao_id'] = $usuario['instituicao_id'];
+        if ($usuario && password_verify($senha_digitada, $usuario['senha_hash'])) {
+            
+            // Salva os dados vitais na sessão
+            $_SESSION['usuario_id'] = $usuario['id'];
+            $_SESSION['usuario_nome'] = $usuario['nome'];
+            $_SESSION['usuario_cargo'] = $usuario['cargo'];
+            $_SESSION['instituicao_id'] = $usuario['instituicao_id'];
 
-        // Redireciona para o Roteador
-        header("Location: dashboard.php");
-        exit;
+            // === 2. TRAVA DE SEGURANÇA: TROCA DE SENHA OBRIGATÓRIA ===
+            // Se o gerente resetou a senha, intercepta o login aqui e bloqueia
+            if ($usuario['precisa_mudar_senha'] == 1) {
+                $_SESSION['forcar_troca'] = true; // Cria uma autorização temporária
+                header("Location: trocar_senha_obrigatorio.php");
+                exit;
+            }
+            // ==========================================================
 
+            // Lógica de Redirecionamento (RBAC) - Só passa se não precisar trocar a senha
+            switch ($usuario['cargo']) {
+                case 'Admin':
+                    header("Location: dashboard_super.php");
+                    break;
+                case 'Gerente':
+                    header("Location: dashboard_gerente.php");
+                    break;
+                default:
+                    // Atendentes, Tosadores, Veterinários
+                    header("Location: dashboard.php");
+                    break;
+            }
+            exit;
+
+        } else {
+            // Senha ou e-mail errados
+            header("Location: login.php?erro=1");
+            exit;
+        }
     } else {
-        // Senha errada
-        header("Location: login.php?erro=1");
+        // Campos vazios
+        header("Location: login.php?erro=vazio");
         exit;
     }
-} else {
-    // Campos vazios
-    header("Location: login.php");
+} catch (\Throwable $th) {
+    header("Location: login.php?erro=sistema");
     exit;
 }
 
-// Limpa o buffer (segurança extra)
 ob_end_flush();
 ?>

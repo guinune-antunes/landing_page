@@ -3,9 +3,10 @@ session_start();
 header('Content-Type: application/json');
 require 'conexao.php';
 
-// Apenas Super Admin
-if ($_SESSION['usuario_cargo'] !== 'super_admin') {
-    echo json_encode(['success' => false, 'message' => 'Sem permissão.']); exit;
+// CORREÇÃO 1: O cargo correto do administrador no seu banco é 'Admin'
+if (!isset($_SESSION['usuario_cargo']) || $_SESSION['usuario_cargo'] !== 'Admin') {
+    echo json_encode(['success' => false, 'message' => 'Sem permissão.']); 
+    exit;
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
@@ -13,8 +14,8 @@ $data = json_decode(file_get_contents('php://input'), true);
 try {
     $pdo->beginTransaction();
 
-    // 1. Criar a Instituição
-    $sqlInst = "INSERT INTO instituicoes (nome_fantasia, cnpj, plano) VALUES (?, ?, 'basic')";
+    // CORREÇÃO 2: Removida a coluna 'plano' para evitar erro de SQL (pois ela não existe na tabela)
+    $sqlInst = "INSERT INTO instituicoes (nome_fantasia, cnpj) VALUES (?, ?)";
     $stmt = $pdo->prepare($sqlInst);
     $stmt->execute([$data['nome_fantasia'], $data['cnpj']]);
     
@@ -23,7 +24,8 @@ try {
     // 2. Criar o Usuário Gerente vinculado a ela
     $senhaHash = password_hash($data['gerente_senha'], PASSWORD_DEFAULT);
     
-    $sqlUser = "INSERT INTO usuarios (nome, email, senha, cargo, instituicao_id, ativo) VALUES (?, ?, ?, 'gerente', ?, 1)";
+    // CORREÇÃO 3: Trocado 'senha' por 'senha_hash' e 'gerente' por 'Gerente'
+    $sqlUser = "INSERT INTO usuarios (nome, email, senha_hash, cargo, instituicao_id, ativo) VALUES (?, ?, ?, 'Gerente', ?, 1)";
     $stmtUser = $pdo->prepare($sqlUser);
     $stmtUser->execute([
         $data['gerente_nome'],
@@ -41,7 +43,7 @@ try {
     if ($e->getCode() == 23000) {
         echo json_encode(['success' => false, 'message' => 'Este e-mail de gerente já existe.']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => 'Erro do Banco: ' . $e->getMessage()]);
     }
 }
 ?>

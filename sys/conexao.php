@@ -3,7 +3,7 @@
 // Certifique-se de que não há espaços antes da tag <?php acima!
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'petcrm');
-define('DB_USER', '');
+define('DB_USER', 'root');
 define('DB_PASS', '');
 
 // Configurações de charset e DSN

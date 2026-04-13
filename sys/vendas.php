@@ -6,13 +6,23 @@ require 'conexao.php';
 require 'includes/verifica_login.php';
 
 // Busca PRODUTOS
-$stmt_produtos = $pdo->query("SELECT * FROM produtos WHERE quantidade > 0 AND instituicao_id = {$_SESSION['instituicao_id']} ORDER BY nome LIMIT 20");
-$produtosRapidos = $stmt_produtos->fetchAll();
+$id_loja = $_SESSION['instituicao_id'] ?? null;
 
-// Busca CLIENTES
-$stmt_cli = $pdo->prepare("SELECT id, nome_completo FROM clientes WHERE instituicao_id = ? ORDER BY nome_completo");
-$stmt_cli->execute([$_SESSION['instituicao_id']]);
-$clientes = $stmt_cli->fetchAll();
+if (!$id_loja) {
+    die("Sessão expirada. Faça login novamente.");
+}
+
+// Busca apenas os produtos da loja atual que tenham estoque disponível
+$sql_produtos = "SELECT * FROM produtos WHERE instituicao_id = ? AND quantidade_estoque > 0 ORDER BY nome_produto ASC";
+$stmt_produtos = $pdo->prepare($sql_produtos);
+$stmt_produtos->execute([$id_loja]);
+$produtos = $stmt_produtos->fetchAll(PDO::FETCH_ASSOC);
+
+// Busca os Produtos Rápidos (ex: os 8 produtos mais vendidos ou cadastrados recentemente)
+$sql_rapidos = "SELECT * FROM produtos WHERE instituicao_id = ? AND quantidade_estoque > 0 LIMIT 8";
+$stmt_rapidos = $pdo->prepare($sql_rapidos);
+$stmt_rapidos->execute([$id_loja]);
+$produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 

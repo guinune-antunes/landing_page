@@ -10,7 +10,7 @@ $cargo = "admin";
 $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
 
 try {
-    $sql = "INSERT INTO usuarios (nome, email, senha, cargo) VALUES (?, ?, ?, ?)";
+    $sql = "INSERT INTO usuarios (nome, email, senha_hash, cargo) VALUES (?, ?, ?, ?)";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$nome, $email, $senhaHash, $cargo]);
     echo "Usuário Admin criado com sucesso!";

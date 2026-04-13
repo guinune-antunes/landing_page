@@ -1,4 +1,13 @@
 <?php
+require 'includes/verifica_login.php';
+
+// Impede que o Super Admin acesse o painel de clientes do Pet Shop
+if ($_SESSION['usuario_cargo'] === 'Admin') {
+    header("Location: super_admin_clientes.php");
+    exit;
+}
+?>
+<?php
 // Define o título da página e qual item do menu deve ficar ativo
 $pageTitle = 'Clientes';
 $paginaAtiva = 'clientes';

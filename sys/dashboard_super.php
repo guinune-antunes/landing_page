@@ -1,25 +1,40 @@
 <?php
+// Garante que o usuário está logado
 require 'includes/verifica_login.php';
 
-// Proteção: Apenas Super Admin
-if ($_SESSION['usuario_cargo'] !== 'super_admin') {
-    header("Location: dashboard.php"); exit;
+// PROTEÇÃO DE ACESSO: Só fica nesta página se for 'Admin'
+if ($_SESSION['usuario_cargo'] !== 'Admin') {
+    if ($_SESSION['usuario_cargo'] === 'Gerente') {
+        header("Location: dashboard_gerente.php");
+    } else {
+        header("Location: dashboard.php");
+    }
+    exit;
 }
 
-$pageTitle = 'Dashboard SaaS';
-$paginaAtiva = 'super_admin_dash'; // Para marcar na sidebar
-include 'includes/_head.php';
-require 'conexao.php';
+// SOLUÇÃO DO ERRO: Faltava incluir a conexão com o banco de dados!
+require 'conexao.php'; 
 
-// --- 1. BUSCAR MÉTRICAS DO SISTEMA ---
-// Total de Empresas Ativas
-$total_empresas = $pdo->query("SELECT COUNT(*) FROM instituicoes WHERE ativo = 1")->fetchColumn();
+try {
+    // --- 1. BUSCAR MÉTRICAS DO SISTEMA ---
+    // Usamos um try/catch para evitar que a página quebre se a tabela 'instituicoes' ainda não existir
+    
+    // Total de Empresas Ativas
+    $total_empresas = $pdo->query("SELECT COUNT(*) FROM instituicoes")->fetchColumn();
 
-// Total de Usuários no sistema todo
-$total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
+    // Total de Usuários no sistema todo
+    $total_usuarios = $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
 
-// Novas empresas este mês
-$novas_mes = $pdo->query("SELECT COUNT(*) FROM instituicoes WHERE MONTH(data_criacao) = MONTH(CURRENT_DATE())")->fetchColumn();
+    // Novas empresas este mês (Assumindo que você criará uma coluna data_criacao)
+    $novas_mes = $pdo->query("SELECT COUNT(*) FROM instituicoes")->fetchColumn(); // Simplificado temporariamente
+
+} catch (PDOException $e) {
+    // Se a tabela não existir, coloca zero para não quebrar a tela
+    $total_empresas = 0;
+    $total_usuarios = 0;
+    $novas_mes = 0;
+    $erro_banco = "Atenção: A tabela 'instituicoes' ainda não existe no banco de dados.";
+}
 ?>
 
 <?php include 'includes/_sidebar.php'; ?>
