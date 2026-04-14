@@ -77,8 +77,11 @@ function temPermissao($modulo, $permissoes, $cargo) {
                 </a>
             <?php endif; ?>
 
-
-            <?php if ($cargo === 'Gerente'): ?>
+            <?php if (temPermissao('estoque', $permissoes, $cargo)): ?>
+                <a href="painel_estoque.php" class="nav-item <?php echo ($paginaAtiva === 'painel_estoque') ? 'active' : ''; ?>">
+                    <i class="fas fa-clipboard-list"></i> Tarefas do Estoque
+                </a>
+            <?php endif; ?> <?php if ($cargo === 'Gerente'): ?>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
                 <small style="padding-left: 25px; color: #95a5a6; text-transform: uppercase; font-size: 0.7rem; font-weight: bold; letter-spacing: 1px;">Gestão</small>
 
@@ -88,6 +91,10 @@ function temPermissao($modulo, $permissoes, $cargo) {
 
                 <a href="usuarios.php" class="nav-item <?php echo ($paginaAtiva === 'equipe') ? 'active' : ''; ?>">
                     <i class="fas fa-id-badge"></i> Minha Equipe
+                </a>
+                
+                <a href="produtos.php" class="nav-item <?php echo ($paginaAtiva === 'produtos') ? 'active' : ''; ?>">
+                    <i class="fas fa-box-open"></i> Produtos
                 </a>
 
                 <a href="#" class="nav-item">

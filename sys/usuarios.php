@@ -137,22 +137,20 @@ try {
                 <h4 style="margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px;">Permissões Modulares</h4>
                 <div style="background: #f9f9f9; border-radius: 8px; padding: 10px; border: 1px solid #eee;">
                     <div class="perm-row">
-                        <div>
-                            <strong>Módulo de Clientes e Pets</strong>
-                        </div>
+                        <div><strong>Módulo de Clientes e Pets</strong></div>
                         <label class="switch"><input type="checkbox" id="perm-clientes" checked><span class="slider"></span></label>
                     </div>
                     <div class="perm-row">
-                        <div>
-                            <strong>Módulo de Agenda</strong>
-                        </div>
+                        <div><strong>Módulo de Agenda</strong></div>
                         <label class="switch"><input type="checkbox" id="perm-agenda" checked><span class="slider"></span></label>
                     </div>
                     <div class="perm-row">
-                        <div>
-                            <strong>Módulo Financeiro</strong>
-                        </div>
+                        <div><strong>Módulo Financeiro (Caixa)</strong></div>
                         <label class="switch"><input type="checkbox" id="perm-financeiro"><span class="slider"></span></label>
+                    </div>
+                    <div class="perm-row">
+                        <div><strong>Módulo de Estoque (Painel de Tarefas)</strong></div>
+                        <label class="switch"><input type="checkbox" id="perm-estoque"><span class="slider"></span></label>
                     </div>
                 </div>
             </form>
@@ -195,27 +193,33 @@ try {
                         <label class="switch"><input type="checkbox" id="edit-perm-agenda"><span class="slider"></span></label>
                     </div>
                     <div class="perm-row">
-                        <div><strong>Módulo Financeiro</strong></div>
+                        <div><strong>Módulo Financeiro (Caixa)</strong></div>
                         <label class="switch"><input type="checkbox" id="edit-perm-financeiro"><span class="slider"></span></label>
+                    </div>
+                    <div class="perm-row">
+                        <div><strong>Módulo de Estoque (Painel de Tarefas)</strong></div>
+                        <label class="switch"><input type="checkbox" id="edit-perm-estoque"><span class="slider"></span></label>
                     </div>
                 </div>
             </form>
+            
+            <h4 style="margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #e74c3c;">Segurança</h4>
+            <div style="background: #fdf2f0; border-radius: 8px; padding: 10px; border: 1px solid #fadbd8; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>Reset de Senha</strong>
+                    <div style="font-size: 0.8rem; color: #666;">Gera uma senha provisória para este usuário.</div>
+                </div>
+                <button type="button" id="btn-reset-senha" class="btn" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer;">
+                    Gerar Nova Senha
+                </button>
+            </div>
         </div>
+        
         <div class="modal-footer">
             <button class="btn btn-secondary close-edit-btn">Cancelar</button>
             <button class="btn btn-primary" id="updateUserBtn">Salvar Alterações</button>
         </div>
     </div>
-    <h4 style="margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #e74c3c;">Segurança</h4>
-                <div style="background: #fdf2f0; border-radius: 8px; padding: 10px; border: 1px solid #fadbd8; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>Reset de Senha</strong>
-                        <div style="font-size: 0.8rem; color: #666;">Gera uma senha provisória para este usuário.</div>
-                    </div>
-                    <button type="button" id="btn-reset-senha" class="btn" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer;">
-                        Gerar Nova Senha
-                    </button>
-                </div>
 </div>
 
 <script>
@@ -232,7 +236,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('user-cargo').addEventListener('change', function() {
         const isGerente = this.value === 'Gerente';
-        ['perm-clientes', 'perm-agenda', 'perm-financeiro'].forEach(id => {
+        ['perm-clientes', 'perm-agenda', 'perm-financeiro', 'perm-estoque'].forEach(id => {
             const checkbox = document.getElementById(id);
             if(isGerente) {
                 checkbox.checked = true;
@@ -252,7 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
             permissoes: {
                 clientes: document.getElementById('perm-clientes').checked,
                 agenda: document.getElementById('perm-agenda').checked,
-                financeiro: document.getElementById('perm-financeiro').checked
+                financeiro: document.getElementById('perm-financeiro').checked,
+                estoque: document.getElementById('perm-estoque').checked
             }
         };
 
@@ -295,7 +300,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(res => {
                 if(res.success) {
-                    // Mostra um prompt para o gerente poder copiar a senha facilmente
                     prompt("Senha temporária gerada com sucesso! Copie a senha abaixo e envie para o funcionário:", res.senha_temp);
                 } else {
                     alert(res.message);
@@ -325,12 +329,14 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('edit-nome-display').innerText = nome;
             document.getElementById('edit-user-cargo').value = cargo;
 
+            // Alimenta as chavinhas com o que veio do banco
             document.getElementById('edit-perm-clientes').checked = !!permissoes.clientes;
             document.getElementById('edit-perm-agenda').checked = !!permissoes.agenda;
             document.getElementById('edit-perm-financeiro').checked = !!permissoes.financeiro;
+            document.getElementById('edit-perm-estoque').checked = !!permissoes.estoque;
 
             const isGerente = (cargo === 'Gerente');
-            ['edit-perm-clientes', 'edit-perm-agenda', 'edit-perm-financeiro'].forEach(checkId => {
+            ['edit-perm-clientes', 'edit-perm-agenda', 'edit-perm-financeiro', 'edit-perm-estoque'].forEach(checkId => {
                 document.getElementById(checkId).disabled = isGerente;
                 if(isGerente) document.getElementById(checkId).checked = true;
             });
@@ -350,7 +356,8 @@ document.addEventListener('DOMContentLoaded', function() {
             permissoes: {
                 clientes: document.getElementById('edit-perm-clientes').checked,
                 agenda: document.getElementById('edit-perm-agenda').checked,
-                financeiro: document.getElementById('edit-perm-financeiro').checked
+                financeiro: document.getElementById('edit-perm-financeiro').checked,
+                estoque: document.getElementById('edit-perm-estoque').checked
             }
         };
 

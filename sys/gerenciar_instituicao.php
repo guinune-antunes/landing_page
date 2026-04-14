@@ -100,6 +100,9 @@ include 'includes/_head.php';
             <a href="exportar_dados_loja.php?id=<?php echo $loja['id']; ?>" class="btn" style="background: #27ae60; color: white; display: block; text-align: center; text-decoration: none; padding: 10px; border-radius: 5px;">
                 <i class="fas fa-file-excel"></i> Exportar Dados (CSV)
             </a>
+            <a href="exportar_produtos_loja.php?id=<?php echo $loja['id']; ?>" class="btn" style="background: #e67e22; color: white; display: block; text-align: center; text-decoration: none; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                <i class="fas fa-box-open"></i> Exportar Produtos (CSV)
+            </a>
         </div>
 
         <div class="widget-card">
@@ -123,6 +126,23 @@ include 'includes/_head.php';
                 </button>
             </form>
         </div>
+        <h3 style="margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+                <i class="fas fa-boxes" style="color: #e67e22;"></i> Onboarding de Estoque
+            </h3>
+            <p style="font-size: 0.9rem; color: #555; margin-bottom: 15px;">
+                Faça o upload do CSV de produtos. Ordem das colunas: <br>
+                <small style="color: #888;"><em>Nome; Descrição; Código de Barras; Preço; Estoque; Peso (KG)</em></small>
+            </p>
+            
+            <form action="api_admin_importar_produtos.php" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="instituicao_id" value="<?php echo $loja['id']; ?>">
+                <div style="margin-bottom: 15px;">
+                    <input type="file" name="arquivo_csv_produtos" accept=".csv" required style="width: 100%; font-size: 0.9rem; padding: 10px; border: 1px dashed #ccc; border-radius: 5px; background: #fdfdfd;">
+                </div>
+                <button type="submit" class="btn" style="background: #e67e22; color: white; width: 100%; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">
+                    <i class="fas fa-upload"></i> Importar Produtos
+                </button>
+            </form>
         </main>
     </div>
 </div>

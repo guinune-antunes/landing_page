@@ -17,8 +17,6 @@ $paginaAtiva = 'dashboard';
 include 'includes/_head.php';
 require 'conexao.php';
 
-// REMOVIDO: $id_loja = $_SESSION['instituicao_id']; (Não existe no banco)
-
 // --- 1. CARDS (CORRIGIDOS) ---
 
 // Faturamento Mês (Corrigido para 'valor_total' e removido o filtro de instituição)
@@ -177,7 +175,73 @@ foreach ($resultHoje as $row) {
                     <canvas id="timelineChart"></canvas>
                 </div>
             </div>
+            
+            <div style="margin-top: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h2 style="font-size: 1.2rem; color: #2c3e50;"><i class="fas fa-bell" style="color: #f39c12;"></i> Central de Alertas</h2>
+                    
+                    <div>
+                        <button id="btn-scroll-left" class="btn-icon" style="background: white; border: 1px solid #ddd; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-right: 5px;">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button id="btn-scroll-right" class="btn-icon" style="background: white; border: 1px solid #ddd; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
 
+                <div id="alertas-container" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; scroll-behavior: smooth; -ms-overflow-style: none; scrollbar-width: none;">
+                    
+                    <div id="loading-alertas" style="width: 100%; text-align: center; padding: 30px; color: #777;">
+                        <i class="fas fa-spinner fa-spin"></i> Analisando incongruências no sistema...
+                    </div>
+
+                </div>
+            </div>
+            
+            <style>
+                #alertas-container::-webkit-scrollbar { display: none; }
+                .alerta-card { 
+                    min-width: 280px; 
+                    background: white; 
+                    border-left: 4px solid #ddd; 
+                    border-radius: 8px; 
+                    padding: 15px; 
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                }
+                .alerta-card:hover { transform: translateY(-3px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+                .alerta-danger { border-left-color: #e74c3c; } /* Vermelho */
+                .alerta-warning { border-left-color: #f39c12; } /* Amarelo */
+                .alerta-info { border-left-color: #3498db; } /* Azul */
+                .alerta-success { border-left-color: #27ae60; } /* Verde */
+            </style>
+
+
+            <div class="modal-overlay" id="alerta-modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="modal-alerta-titulo" style="display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-exclamation-circle"></i> Detalhes do Alerta
+                        </h2>
+                        <button class="close-modal-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="modal-alerta-descricao" style="color: #555; margin-bottom: 20px; line-height: 1.5;"></p>
+                        
+                        <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #eee;">
+                            <h4 style="margin-bottom: 10px; color: #333; font-size: 0.9rem; text-transform: uppercase;">Itens Afetados / Observações:</h4>
+                            <ul id="modal-alerta-lista" style="list-style-type: none; padding: 0; margin: 0; max-height: 200px; overflow-y: auto;">
+                                </ul>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="#" id="modal-alerta-acao" class="btn btn-primary" style="text-decoration: none;">Ir para a tela de resolução</a>
+                        <button class="btn btn-secondary close-modal-btn">Fechar</button>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 </div>
@@ -202,7 +266,6 @@ foreach ($resultHoje as $row) {
         document.getElementById('week-nav').style.display = 'flex';
         document.getElementById('chart-title').innerText = 'Fluxo de Agendamentos';
         
-        // Aqui você precisará ajustar a sua api_chart_semana.php para também remover a instituicao_id
         fetch(`api_chart_semana.php?offset=${semanaOffset}`)
             .then(res => res.json())
             .then(data => {
@@ -282,5 +345,122 @@ foreach ($resultHoje as $row) {
     }
 
     renderWeekChart();
+
+    document.addEventListener('DOMContentLoaded', function() {
+    
+        // --- 1. Lógica do Carrossel Horizontal ---
+        const container = document.getElementById('alertas-container');
+        const btnLeft = document.getElementById('btn-scroll-left');
+        const btnRight = document.getElementById('btn-scroll-right');
+
+        btnLeft.onclick = () => container.scrollBy({ left: -300, behavior: 'smooth' });
+        btnRight.onclick = () => container.scrollBy({ left: 300, behavior: 'smooth' });
+
+        // --- 2. Lógica do Modal Universal ---
+        const modalAlerta = document.getElementById('alerta-modal');
+        document.querySelectorAll('.close-modal-btn').forEach(btn => btn.onclick = () => modalAlerta.style.display = 'none');
+
+        // Função para abrir o modal preenchido com os dados do alerta (Atualizada para suportar delegação)
+        window.abrirModalAlerta = function(titulo, descricao, cor, icone, linkAcao, textoBotao, listaItens, isDelegavel, tipoTarefa) {
+            document.getElementById('modal-alerta-titulo').innerHTML = `<i class="fas ${icone}" style="color: ${cor};"></i> ${titulo}`;
+            document.getElementById('modal-alerta-descricao').innerText = descricao;
+            
+            const btnAcao = document.getElementById('modal-alerta-acao');
+            btnAcao.innerText = textoBotao;
+            btnAcao.style.background = cor;
+            btnAcao.style.borderColor = cor;
+
+            // Lógica de Inteligência: Se for delegável, cria Ordem de Serviço em vez de redirecionar
+            if (isDelegavel) {
+                btnAcao.href = "#";
+                btnAcao.onclick = function(e) {
+                    e.preventDefault();
+                    btnAcao.innerText = "Enviando Ordem de Serviço...";
+                    btnAcao.style.opacity = "0.7";
+                    
+                    fetch('api_delegar_estoque.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            tipo: tipoTarefa,
+                            titulo: `Revisão Necessária: ${titulo}`,
+                            descricao: descricao + "\n\nPor favor, verifiquem os itens listados e tomem as medidas necessárias."
+                        })
+                    })
+                    .then(res => res.json())
+                    .then(res => {
+                        alert(res.message);
+                        if(res.success) modalAlerta.style.display = 'none';
+                        btnAcao.innerText = textoBotao;
+                        btnAcao.style.opacity = "1";
+                    })
+                    .catch(err => {
+                        alert("Erro de conexão ao delegar tarefa.");
+                        btnAcao.innerText = textoBotao;
+                        btnAcao.style.opacity = "1";
+                    });
+                };
+            } else {
+                // Comportamento normal para botões não-delegáveis
+                btnAcao.onclick = null;
+                btnAcao.href = linkAcao;
+                if (textoBotao === 'Ciente') {
+                    btnAcao.onclick = function(e) { e.preventDefault(); modalAlerta.style.display = 'none'; }
+                }
+            }
+
+            const ulLista = document.getElementById('modal-alerta-lista');
+            ulLista.innerHTML = '';
+            
+            if (listaItens && listaItens.length > 0) {
+                listaItens.forEach(item => {
+                    ulLista.innerHTML += `<li style="padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 0.9rem;">${item}</li>`;
+                });
+            } else {
+                ulLista.innerHTML = '<li style="color: #777; font-size: 0.9rem;">Nenhum detalhe específico listado.</li>';
+            }
+
+            modalAlerta.style.display = 'flex';
+        };
+
+        // --- 3. Busca os Alertas no Backend ---
+        fetch('api_buscar_alertas.php')
+            .then(res => res.json())
+            .then(alertas => {
+                container.innerHTML = ''; // Limpa o "Loading..."
+                
+                if(alertas.length === 0) {
+                    container.innerHTML = `
+                        <div style="width: 100%; text-align: center; padding: 20px; background: #e0f8e9; color: #27ae60; border-radius: 8px;">
+                            <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+                            Sistema rodando perfeitamente. Nenhuma incongruência encontrada!
+                        </div>`;
+                    return;
+                }
+
+                // Constrói os cards na tela
+                alertas.forEach(alerta => {
+                    const dadosLista = encodeURIComponent(JSON.stringify(alerta.itens));
+                    
+                    const card = `
+                        <div class="alerta-card alerta-${alerta.tipo}" 
+                             onclick="abrirModalAlerta('${alerta.titulo}', '${alerta.descricao}', '${alerta.corHex}', '${alerta.icone}', '${alerta.link}', '${alerta.textoBotao}', JSON.parse(decodeURIComponent('${dadosLista}')), ${alerta.is_delegavel}, '${alerta.tipo_tarefa || ''}')">
+                            <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                                <div style="background: ${alerta.corFundo}; color: ${alerta.corHex}; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
+                                    <i class="fas ${alerta.icone}"></i>
+                                </div>
+                                <h3 style="font-size: 1rem; color: #333; margin: 0;">${alerta.titulo}</h3>
+                            </div>
+                            <p style="color: #777; font-size: 0.85rem; margin: 0;">${alerta.resumo}</p>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+            })
+            .catch(err => {
+                container.innerHTML = '<div style="color: red; padding: 20px;">Erro ao carregar os alertas do sistema.</div>';
+            });
+    });
 </script>
+
 <?php include 'includes/_footer.php'; ?>
