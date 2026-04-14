@@ -73,7 +73,9 @@ try {
                                     </td>
                                     <td style="padding: 10px;"><?php echo date('d/m/Y', strtotime($inst['data_criacao'])); ?></td>
                                     <td style="padding: 10px;">
-                                        <button class="btn-icon" style="color: #3498db; border: none; background: none; cursor: pointer;" title="Editar"><i class="fas fa-edit"></i></button>
+                                        <a href="gerenciar_instituicao.php?id=<?php echo $inst['id']; ?>" class="btn-icon" style="color: #3498db; text-decoration: none; display: inline-block; margin-right: 10px;" title="Gerenciar Instituição (Reset/Exportar)">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
                                         <button class="btn-icon" style="color: #e74c3c; border: none; background: none; cursor: pointer;" title="Bloquear"><i class="fas fa-ban"></i></button>
                                     </td>
                                 </tr>
@@ -170,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(res => {
             alert(res.message);
             if(res.success) {
-                location.reload(); // Recarrega a página para exibir a nova instituição na tabela
+                location.reload(); 
             } else {
                 btnSave.innerText = originalText;
                 btnSave.disabled = false;
