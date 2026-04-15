@@ -22,9 +22,11 @@ if ($cargo !== 'Admin' && $usuario_id > 0) {
 }
 
 // Função auxiliar para verificar permissões modulares
-function temPermissao($modulo, $permissoes, $cargo) {
-    if ($cargo === 'Gerente') return true; // Gerente sempre vê tudo na loja dele
-    return isset($permissoes[$modulo]) && $permissoes[$modulo] == true;
+if (!function_exists('temPermissao')) {
+    function temPermissao($modulo, $permissoes, $cargo) {
+        if ($cargo === 'Gerente') return true; // Gerente sempre vê tudo na loja dele
+        return isset($permissoes[$modulo]) && $permissoes[$modulo] == true;
+    }
 }
 ?>
 
@@ -70,7 +72,7 @@ function temPermissao($modulo, $permissoes, $cargo) {
                     <i class="fas fa-users"></i> Clientes & Pets
                 </a>
             <?php endif; ?>
-
+            
             <?php if (temPermissao('financeiro', $permissoes, $cargo)): ?>
                 <a href="vendas.php" class="nav-item <?php echo ($paginaAtiva === 'vendas') ? 'active' : ''; ?>">
                     <i class="fas fa-shopping-cart"></i> Caixa (PDV)
@@ -81,7 +83,14 @@ function temPermissao($modulo, $permissoes, $cargo) {
                 <a href="painel_estoque.php" class="nav-item <?php echo ($paginaAtiva === 'painel_estoque') ? 'active' : ''; ?>">
                     <i class="fas fa-clipboard-list"></i> Tarefas do Estoque
                 </a>
-            <?php endif; ?> <?php if ($cargo === 'Gerente'): ?>
+            <?php endif; ?>
+
+            <?php if (temPermissao('crm_vendas', $permissoes, $cargo)): ?>
+                <a href="crm_vendas.php" class="nav-item <?php echo ($paginaAtiva === 'crm_vendas') ? 'active' : ''; ?>">
+                    <i class="fas fa-headset"></i> CRM Vendas Ativas
+                </a>
+            <?php endif; ?>
+            <?php if ($cargo === 'Gerente'): ?>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
                 <small style="padding-left: 25px; color: #95a5a6; text-transform: uppercase; font-size: 0.7rem; font-weight: bold; letter-spacing: 1px;">Gestão</small>
 
@@ -101,7 +110,6 @@ function temPermissao($modulo, $permissoes, $cargo) {
                     <i class="fas fa-cog"></i> Config. da Loja
                 </a>
             <?php endif; ?>
-
 
             <?php if ($cargo === 'Veterinário'): ?>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>

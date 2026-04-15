@@ -1,15 +1,14 @@
 <?php
 // --- 1. BLINDAGEM CONTRA ERROS DE RESPOSTA ---
-ob_start(); // Inicia o buffer de memória
-ini_set('display_errors', 0); // Desativa exibição de erros HTML na tela
-error_reporting(E_ALL); // Continua registrando erros no log
+ob_start(); 
+ini_set('display_errors', 0); 
+error_reporting(E_ALL); 
 
 header('Content-Type: application/json');
 session_start();
 
-// Função auxiliar para responder erro limpo e parar tudo
 function responderErro($mensagem) {
-    ob_clean(); // Limpa qualquer lixo que tenha sido gerado antes
+    ob_clean(); 
     echo json_encode(['success' => false, 'message' => $mensagem]);
     exit;
 }
@@ -28,7 +27,6 @@ try {
     $rawInput = file_get_contents('php://input');
     $data = json_decode($rawInput, true);
 
-    // Verifica se o JSON veio correto
     if (json_last_error() !== JSON_ERROR_NONE) {
         responderErro('Dados inválidos recebidos do navegador.');
     }
@@ -39,36 +37,30 @@ try {
 
     $pdo->beginTransaction();
 
-    // 3. Salva a Venda (Cabeçalho)
-    // ATENÇÃO: Certifique-se que os nomes das colunas batem com seu banco
-    $sql_venda = "INSERT INTO vendas 
-        (instituicao_id, cliente_id, total_venda, desconto, forma_pagamento, status, agendamentos_id) 
-        VALUES (?, ?, ?, ?, ?, 'Finalizada', NULL)";
+    // 3. Salva a Venda (Cabeçalho) - CORRIGIDO: valor_total
+    $sql_venda = "INSERT INTO vendas (instituicao_id, cliente_id, valor_total, forma_pagamento, data_venda) 
+                  VALUES (?, ?, ?, ?, NOW())";
     
     $stmt = $pdo->prepare($sql_venda);
     
-    // Trata valores opcionais
     $cliente_id = !empty($data['cliente_id']) ? $data['cliente_id'] : null;
-    $total_venda = !empty($data['total_venda']) ? $data['total_venda'] : 0;
-    $desconto = !empty($data['desconto']) ? $data['desconto'] : 0;
+    $valor_total = !empty($data['total_venda']) ? $data['total_venda'] : 0;
     
     $stmt->execute([
         $id_loja,
         $cliente_id,
-        $total_venda,
-        $desconto,
+        $valor_total,
         $data['forma_pagamento']
     ]);
     
     $venda_id = $pdo->lastInsertId();
 
-    // 4. Salva os Itens e Baixa Estoque
-    $sql_item = "INSERT INTO itens_venda 
-        (venda_id, produto_id, nome_item, quantidade, preco_unitario, subtotal) 
-        VALUES (?, ?, ?, ?, ?, ?)";
+    // 4. Salva os Itens (CORRIGIDO para venda_itens) e Baixa Estoque
+    $sql_item = "INSERT INTO venda_itens (venda_id, produto_id, nome_produto, quantidade, preco_unitario, subtotal)
+                 VALUES (?, ?, ?, ?, ?, ?)";
     
-    // Query para baixar estoque (apenas se for da mesma loja)
-    $sql_estoque = "UPDATE produtos SET quantidade = quantidade - ? WHERE id = ? AND instituicao_id = ?";
+    // Query para baixar estoque (CORRIGIDO: quantidade_estoque)
+    $sql_estoque = "UPDATE produtos SET quantidade_estoque = quantidade_estoque - ? WHERE id = ? AND instituicao_id = ?";
     
     $stmt_item = $pdo->prepare($sql_item);
     $stmt_estoque = $pdo->prepare($sql_estoque);
@@ -79,6 +71,7 @@ try {
         $preco = $item['preco'];
         $subtotal = $qtd * $preco;
 
+        // Salva o item no carrinho
         $stmt_item->execute([
             $venda_id,
             $produto_id,
@@ -88,20 +81,49 @@ try {
             $subtotal
         ]);
 
-        // Baixa estoque se for produto cadastrado
+        // Se for um produto do banco, baixa o estoque e analisa para o CRM
         if ($produto_id) {
             $stmt_estoque->execute([$qtd, $produto_id, $id_loja]);
+
+            // =================================================================
+            // INTELIGÊNCIA DO CRM: Detecta se é ração e lança na esteira
+            // =================================================================
+            if ($cliente_id) {
+                // Verifica se o produto tem dados nutricionais (Ração)
+                $stmt_check = $pdo->prepare("SELECT tamanho_embalagem_kg FROM produtos WHERE id = ?");
+                $stmt_check->execute([$produto_id]);
+                $prod_info = $stmt_check->fetch(PDO::FETCH_ASSOC);
+
+                if ($prod_info && !empty($prod_info['tamanho_embalagem_kg'])) {
+                    
+                    // Pega o primeiro pet do cliente para associar à ração
+                    $stmt_pet = $pdo->prepare("SELECT id FROM pets WHERE cliente_id = ? LIMIT 1");
+                    $stmt_pet->execute([$cliente_id]);
+                    $pet = $stmt_pet->fetch(PDO::FETCH_ASSOC);
+                    $pet_id_venda = $pet ? $pet['id'] : null;
+
+                    // Lança a oportunidade como Pendente no CRM
+                    if ($pet_id_venda) {
+                        $sql_crm = "INSERT INTO oportunidades_venda (instituicao_id, cliente_id, pet_id, produto_id, produto_nome, data_compra, status)
+                                    VALUES (?, ?, ?, ?, ?, NOW(), 'Pendente')";
+                        $pdo->prepare($sql_crm)->execute([
+                            $id_loja, $cliente_id, $pet_id_venda, $produto_id, $item['nome']
+                        ]);
+                    }
+                }
+            }
+            // =================================================================
         }
     }
 
     $pdo->commit();
 
     // --- SUCESSO ---
-    ob_clean(); // Limpa buffer para garantir JSON puro
+    ob_clean(); 
     echo json_encode(['success' => true, 'message' => 'Venda realizada com sucesso!', 'venda_id' => $venda_id]);
 
-} catch (Throwable $e) { // Usa Throwable para pegar qualquer erro (até fatais)
-    if ($pdo->inTransaction()) {
+} catch (Throwable $e) { 
+    if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
     responderErro('Erro no servidor: ' . $e->getMessage());

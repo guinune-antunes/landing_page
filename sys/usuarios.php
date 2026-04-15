@@ -200,6 +200,16 @@ try {
                         <div><strong>Módulo de Estoque (Painel de Tarefas)</strong></div>
                         <label class="switch"><input type="checkbox" id="edit-perm-estoque"><span class="slider"></span></label>
                     </div>
+                    <div class="perm-row">
+                        <div><strong>Módulo de Estoque (Painel de Tarefas)</strong></div>
+                        <label class="switch"><input type="checkbox" id="edit-perm-estoque"><span class="slider"></span></label>
+                    </div>
+                    <div class="perm-row">
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <strong>Módulo CRM Vendas (Contato Ativo)</strong>
+                        <label class="switch"><input type="checkbox" id="edit-perm-crm_vendas"><span class="slider"></span></label>
+                    </div>
+</div>
                 </div>
             </form>
             
@@ -357,7 +367,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 clientes: document.getElementById('edit-perm-clientes').checked,
                 agenda: document.getElementById('edit-perm-agenda').checked,
                 financeiro: document.getElementById('edit-perm-financeiro').checked,
-                estoque: document.getElementById('edit-perm-estoque').checked
+                estoque: document.getElementById('edit-perm-estoque').checked,
+                crm_vendas: document.getElementById('edit-perm-crm_vendas').checked
             }
         };
 

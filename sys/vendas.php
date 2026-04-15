@@ -5,26 +5,34 @@ include 'includes/_head.php';
 require 'conexao.php';
 require 'includes/verifica_login.php';
 
-// Busca PRODUTOS
+// Confirma a loja
 $id_loja = $_SESSION['instituicao_id'] ?? null;
-
 if (!$id_loja) {
     die("Sessão expirada. Faça login novamente.");
 }
 
-// Busca apenas os produtos da loja atual que tenham estoque disponível
+// Busca os clientes da loja para o Select do PDV
+$sql_clientes = "SELECT id, nome_completo FROM clientes WHERE instituicao_id = ? ORDER BY nome_completo ASC";
+$stmt_clientes = $pdo->prepare($sql_clientes);
+$stmt_clientes->execute([$id_loja]);
+$clientes = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
+
+// =========================================================================
+// CORREÇÃO: A linha abaixo havia sido apagada acidentalmente!
 $sql_produtos = "SELECT * FROM produtos WHERE instituicao_id = ? AND quantidade_estoque > 0 ORDER BY nome_produto ASC";
 $stmt_produtos = $pdo->prepare($sql_produtos);
 $stmt_produtos->execute([$id_loja]);
 $produtos = $stmt_produtos->fetchAll(PDO::FETCH_ASSOC);
 
-// Busca os Produtos Rápidos (ex: os 8 produtos mais vendidos ou cadastrados recentemente)
-$sql_rapidos = "SELECT * FROM produtos WHERE instituicao_id = ? AND quantidade_estoque > 0 LIMIT 8";
+// Busca os Produtos Rápidos (Agora puxando os 12 mais novos, incluindo as rações!)
+$sql_rapidos = "SELECT * FROM produtos WHERE instituicao_id = ? AND quantidade_estoque > 0 ORDER BY id DESC LIMIT 12";
 $stmt_rapidos = $pdo->prepare($sql_rapidos);
 $stmt_rapidos->execute([$id_loja]);
 $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
+// =========================================================================
 ?>
 
+<?php include 'includes/_sidebar.php'; ?>
 
 <?php include 'includes/_sidebar.php'; ?>
 
@@ -96,15 +104,15 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
                         <hr style="border: 0; border-top: 1px dashed #ddd; margin: 10px 0;">
 
                         <?php foreach ($produtosRapidos as $prod): ?>
-                            <div class="service-list-item" onclick="adicionarAoCarrinho(<?php echo $prod['id']; ?>, '<?php echo addslashes($prod['nome']); ?>', <?php echo $prod['preco']; ?>)">
+                            <div class="service-list-item" onclick="adicionarAoCarrinho(<?php echo $prod['id']; ?>, '<?php echo addslashes($prod['nome_produto']); ?>', <?php echo $prod['preco_venda']; ?>)">
                                 <div class="service-info">
                                     <div class="service-icon" style="background:#e3f2fd; color:#3498db;"><i class="fas fa-box"></i></div>
                                     <div class="service-details">
-                                        <h4><?php echo htmlspecialchars($prod['nome']); ?></h4>
-                                        <small>Estoque: <?php echo $prod['quantidade']; ?> <?php echo $prod['unidade']; ?></small>
+                                        <h4><?php echo htmlspecialchars($prod['nome_produto']); ?></h4>
+                                        <small>Estoque: <?php echo $prod['quantidade_estoque']; ?> un</small>
                                     </div>
                                 </div>
-                                <div class="service-price">R$ <?php echo number_format($prod['preco'], 2, ',', '.'); ?></div>
+                                <div class="service-price">R$ <?php echo number_format($prod['preco_venda'], 2, ',', '.'); ?></div>
                             </div>
                         <?php endforeach; ?>
 
