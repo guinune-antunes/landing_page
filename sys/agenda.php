@@ -41,7 +41,6 @@ $linkSemanaAnterior = date('Y-m-d', strtotime('-7 days', $timestampBase));
 $linkSemanaSeguinte = date('Y-m-d', strtotime('+7 days', $timestampBase));
 $displayRange = date('d M', strtotime($inicioSemana)) . ' - ' . date('d M, Y', strtotime($fimSemana));
 
-
 // --- 3. BUSCAS NO BANCO DE DADOS (FILTRADAS PELA LOJA) ---
 
 // Busca Clientes
@@ -49,43 +48,32 @@ $stmt_clientes = $pdo->prepare("SELECT id, nome_completo FROM clientes WHERE ins
 $stmt_clientes->execute([$id_loja]);
 $clientes = $stmt_clientes->fetchAll();
 
-// Busca Profissionais (Da tabela de usuários que criamos)
+// Busca Profissionais
 $stmt_pro = $pdo->prepare("SELECT id, nome, cargo FROM usuarios WHERE instituicao_id = ? AND ativo = 1 AND cargo != 'Admin' ORDER BY nome");
 $stmt_pro->execute([$id_loja]);
 $profissionais = $stmt_pro->fetchAll();
 
-// Busca Agendamentos
-$sql_ag = "SELECT a.*, p.nome AS pet_nome, c.nome_completo AS cliente_nome 
+// Busca Agendamentos Blindada (Garante que vai achar o ID do Cliente através do Pet)
+$sql_ag = "SELECT a.*, 
+                  p.id AS real_pet_id, p.nome AS pet_nome, 
+                  c.id AS real_cliente_id, c.nome_completo AS cliente_nome 
            FROM agendamentos a
            JOIN pets p ON a.pet_id = p.id
-           JOIN clientes c ON a.cliente_id = c.id
-           WHERE a.instituicao_id = ? 
-           AND a.data_hora_inicio BETWEEN ? AND ?
-           ORDER BY a.data_hora_inicio";
-
-$sql_ag = "SELECT a.*, p.nome AS pet_nome, c.nome_completo AS cliente_nome 
-           FROM agendamentos a
-           JOIN pets p ON a.pet_id = p.id
-           JOIN clientes c ON p.cliente_id = c.id 
+           JOIN clientes c ON p.cliente_id = c.id
            WHERE a.instituicao_id = ? 
            AND a.data_hora_inicio BETWEEN ? AND ?
            ORDER BY a.data_hora_inicio";
 
 $stmt_ag = $pdo->prepare($sql_ag);
-
-$agendamentosPorDia = [1 => [], 2 => [], 3 => [], 4 => [], 5 => [], 6 => [], 7 => []];
-$sql_ag = "SELECT a.*, p.nome AS pet_nome, c.nome_completo AS cliente_nome 
-           FROM agendamentos a
-           JOIN pets p ON a.pet_id = p.id
-           JOIN clientes c ON p.cliente_id = c.id 
-           WHERE a.instituicao_id = ? 
-           AND a.data_hora_inicio BETWEEN ? AND ?
-           ORDER BY a.data_hora_inicio";
-
-$stmt_ag = $pdo->prepare($sql_ag);
-// AS DUAS LINHAS ABAIXO FALTARAM NA MINHA ÚLTIMA RESPOSTA:
 $stmt_ag->execute([$id_loja, $inicioSemana, $fimSemana]); 
 $agendamentos = $stmt_ag->fetchAll();
+
+// Prepara as gavetas e distribui os agendamentos nos dias da semana
+$agendamentosPorDia = [1 => [], 2 => [], 3 => [], 4 => [], 5 => [], 6 => [], 7 => []];
+foreach ($agendamentos as $ag) {
+    $diaSemanaAgendamento = date('N', strtotime($ag['data_hora_inicio']));
+    $agendamentosPorDia[$diaSemanaAgendamento][] = $ag;
+}
 
 // Funções de Layout do Calendário
 function calcularPosicao($datetime) {
@@ -162,11 +150,25 @@ include 'includes/_sidebar.php';
                                 $top = calcularPosicao($ag['data_hora_inicio']);
                                 $height = calcularAltura($ag['data_hora_inicio'], $ag['data_hora_fim']);
                                 $classeServico = getServiceClass($ag); 
+                                
+                                // Formatação blindada de Data e Hora
+                                $dataInicio = $ag['data_hora_inicio'];
+                                $dataApp = $dataInicio ? date('Y-m-d', strtotime($dataInicio)) : '';
+                                $horaApp = $dataInicio ? date('H:i', strtotime($dataInicio)) : '';
                             ?>
                                 <button type="button" 
                                     class="appointment-card <?php echo $classeServico; ?>" 
                                     style="top: <?php echo $top; ?>px; height: <?php echo $height; ?>px;"
-                                    title="<?php echo htmlspecialchars($ag['observacoes']); ?>"
+                                    title="<?php echo htmlspecialchars($ag['observacoes'] ?? ''); ?>"
+                                    
+                                    data-id="<?php echo $ag['id']; ?>"
+                                    data-cliente="<?php echo $ag['real_cliente_id']; ?>"
+                                    data-pet="<?php echo $ag['real_pet_id']; ?>"
+                                    data-servico="<?php echo $ag['servico']; ?>"
+                                    data-data="<?php echo $dataApp; ?>"
+                                    data-hora="<?php echo $horaApp; ?>"
+                                    data-profissional="<?php echo $ag['profissional'] ?? '0'; ?>"
+                                    data-obs="<?php echo htmlspecialchars($ag['observacoes'] ?? ''); ?>"
                                 >
                                     <p class="pet-name"><?php echo htmlspecialchars($ag['pet_nome']); ?></p>
                                     <p class="service-name"><?php echo htmlspecialchars($ag['servico']); ?></p>
@@ -191,6 +193,8 @@ include 'includes/_sidebar.php';
         </div>
         <div class="modal-body">
             <form id="appointment-form"> 
+                <input type="hidden" id="app-id" value="">
+
                 <div class="form-group">
                     <label>Cliente</label>
                     <select id="app-client" required>
@@ -222,7 +226,7 @@ include 'includes/_sidebar.php';
                 <div class="form-group-row">
                     <div class="form-group">
                         <label>Data</label>
-                        <input type="date" id="app-date" min="<?php echo date('Y-m-d'); ?>" required>
+                        <input type="date" id="app-date" required>
                     </div>
                     <div class="form-group">
                         <label>Horário Inicial</label>
@@ -262,15 +266,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const selectPet = document.getElementById('app-pet');
     
     // Abrir e fechar modal
-    btnAdd.onclick = () => modal.style.display = 'flex';
     document.querySelectorAll('.close-modal-btn').forEach(btn => {
         btn.onclick = () => modal.style.display = 'none';
     });
 
-    // Buscar Pets Dinamicamente quando seleciona o Cliente
-    selectClient.addEventListener('change', function() {
-        const clienteId = this.value;
-        
+    // Função inteligente para buscar pets e já selecionar o pet correto na edição
+    function carregarPets(clienteId, petIdSelecionado = null) {
         selectPet.innerHTML = '<option value="">Carregando pets...</option>';
         selectPet.disabled = true;
 
@@ -279,24 +280,80 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Faremos essa API no próximo passo!
         fetch(`api_buscar_pets.php?cliente_id=${clienteId}`)
             .then(res => res.json())
             .then(data => {
                 selectPet.innerHTML = '<option value="">Selecione o pet...</option>';
                 data.forEach(pet => {
-                    selectPet.innerHTML += `<option value="${pet.id}">${pet.nome}</option>`;
+                    const selected = (pet.id == petIdSelecionado) ? 'selected' : '';
+                    selectPet.innerHTML += `<option value="${pet.id}" ${selected}>${pet.nome}</option>`;
                 });
                 selectPet.disabled = false;
             })
             .catch(err => {
                 selectPet.innerHTML = '<option value="">Erro ao carregar pets</option>';
             });
+    }
+
+    // Evento quando muda o cliente manualmente no "Novo Agendamento"
+    selectClient.addEventListener('change', function() {
+        carregarPets(this.value);
+    });
+
+    // Evento do botão "Novo Agendamento" (Limpa tudo)
+    btnAdd.onclick = () => {
+        document.querySelector('#appointment-modal h2').innerText = 'Novo Agendamento';
+        document.getElementById('appointment-form').reset();
+        document.getElementById('app-id').value = ''; 
+        selectPet.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
+        selectPet.disabled = true;
+        
+        // Define a data atual como mínimo no momento de criar
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('app-date').min = hoje;
+        document.getElementById('app-date').value = hoje;
+        
+        modal.style.display = 'flex';
+    };
+
+    // A MÁGICA DO EDITAR: Evento de clique nos botões da agenda
+    document.querySelectorAll('.appointment-card').forEach(card => {
+        card.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            const clienteId = this.getAttribute('data-cliente');
+            const petId = this.getAttribute('data-pet');
+            const servico = this.getAttribute('data-servico');
+            const dataStr = this.getAttribute('data-data');
+            const horaStr = this.getAttribute('data-hora');
+            const profId = this.getAttribute('data-profissional');
+            const obs = this.getAttribute('data-obs');
+
+            // Preenche os campos de texto/selects simples
+            document.getElementById('app-id').value = id;
+            document.getElementById('app-client').value = clienteId;
+            document.getElementById('app-service').value = servico;
+            
+            // Remove o 'min' date para permitir visualizar/editar agendamentos do passado
+            document.getElementById('app-date').removeAttribute('min'); 
+            document.getElementById('app-date').value = dataStr;
+            
+            document.getElementById('app-time').value = horaStr;
+            document.getElementById('app-professional').value = profId;
+            document.getElementById('app-notes').value = obs;
+
+            document.querySelector('#appointment-modal h2').innerText = 'Editar / Remarcar Agendamento';
+
+            // Dispara a busca dos pets do cliente e já seleciona o pet correto quando a lista voltar
+            carregarPets(clienteId, petId);
+
+            modal.style.display = 'flex';
+        });
     });
 
     // Salvar Agendamento
     btnSave.addEventListener('click', function() {
         const data = {
+            id: document.getElementById('app-id').value,
             cliente_id: selectClient.value,
             pet_id: selectPet.value,
             servico: document.getElementById('app-service').value,
@@ -314,7 +371,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btnSave.innerText = "Salvando...";
         btnSave.disabled = true;
 
-        // Faremos essa API de salvar no próximo passo!
         fetch('api_salvar_agendamento.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
