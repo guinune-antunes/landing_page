@@ -35,6 +35,6 @@ try {
         echo json_encode(['success' => false, 'message' => 'Usuário não encontrado nesta loja.']);
     }
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno do servidor.']);
 }
 ?>

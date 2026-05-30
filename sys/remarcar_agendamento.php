@@ -54,6 +54,6 @@ try {
 } catch (Exception $e) {
     // Se algo der errado, desfaz tudo
     $pdo->rollBack();
-    echo json_encode(['success' => false, 'message' => 'Erro ao remarcar: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno ao remarcar.']);
 }
 ?>

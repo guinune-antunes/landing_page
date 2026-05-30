@@ -23,7 +23,7 @@ try {
     $response['pets'] = $pets;
 
 } catch (PDOException $e) {
-    $response['message'] = 'Erro de SQL: ' . $e->getMessage();
+    $response['message'] = 'Erro interno no servidor.';
 }
 
 echo json_encode($response);

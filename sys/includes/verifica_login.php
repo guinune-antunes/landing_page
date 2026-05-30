@@ -11,4 +11,23 @@ if (!isset($_SESSION['usuario_id'])) {
     header("Location: ../login.php?erro=negado");
     exit;
 }
+
+// Função centralizada de verificação de permissões (RBAC)
+if (!function_exists('verificarPermissao')) {
+    function verificarPermissao(array $cargosPermitidos) {
+        $cargoUsuario = $_SESSION['usuario_cargo'] ?? '';
+        
+        if (!in_array($cargoUsuario, $cargosPermitidos)) {
+            // Se não tiver permissão, redireciona de volta para o dashboard correto
+            if ($cargoUsuario === 'Admin') {
+                header("Location: dashboard_super.php"); 
+            } else if ($cargoUsuario === 'Gerente') {
+                header("Location: dashboard_gerente.php");
+            } else {
+                header("Location: dashboard.php"); 
+            }
+            exit;
+        }
+    }
+}
 ?>

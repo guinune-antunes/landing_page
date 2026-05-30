@@ -30,6 +30,6 @@ try {
         echo json_encode(['success' => false, 'message' => 'Falha ao atualizar usuário.']);
     }
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno no servidor.']);
 }
 ?>

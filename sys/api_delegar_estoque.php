@@ -35,6 +35,6 @@ try {
     echo json_encode(['success' => true, 'message' => 'Ordem de Serviço enviada para a equipe de estoque com sucesso!']);
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno no servidor.']);
 }
 ?>

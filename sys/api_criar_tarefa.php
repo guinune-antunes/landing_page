@@ -29,6 +29,6 @@ try {
     echo json_encode(['success' => true, 'message' => 'Ordem de serviço criada com sucesso! A equipe já pode visualizá-la.']);
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Erro no servidor: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno do servidor.']);
 }
 ?>

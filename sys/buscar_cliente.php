@@ -77,7 +77,7 @@ try {
     }
 
 } catch (PDOException $e) {
-    $response['message'] = 'Erro de SQL: ' . $e->getMessage();
+    $response['message'] = 'Erro interno ao buscar cliente.';
 }
 
 echo json_encode($response);

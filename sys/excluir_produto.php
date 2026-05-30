@@ -17,6 +17,6 @@ try {
     echo json_encode(['success' => true, 'message' => 'Produto excluído com sucesso!']);
 
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'message' => 'Erro ao excluir: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno ao excluir.']);
 }
 ?>

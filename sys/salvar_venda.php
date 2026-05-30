@@ -126,6 +126,6 @@ try {
     if (isset($pdo) && $pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    responderErro('Erro no servidor: ' . $e->getMessage());
+    responderErro('Erro interno no servidor.');
 }
 ?>

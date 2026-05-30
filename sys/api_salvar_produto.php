@@ -50,6 +50,6 @@ try {
     echo json_encode(['success' => true, 'message' => $msg]);
 
 } catch (Exception $e) {
-    echo json_encode(['success' => false, 'message' => 'Erro: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Erro interno do servidor.']);
 }
 ?>

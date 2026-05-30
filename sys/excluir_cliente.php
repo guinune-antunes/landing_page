@@ -29,7 +29,7 @@ if (isset($_GET['id'])) {
     } catch (Exception $e) {
         $pdo->rollBack();
         // Em produção, logar o erro em vez de exibi-lo
-        echo json_encode(['success' => false, 'message' => 'Erro ao excluir cliente: ' . $e->getMessage()]);
+        echo json_encode(['success' => false, 'message' => 'Erro interno ao excluir cliente.']);
     }
 
 } else {

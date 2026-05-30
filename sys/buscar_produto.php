@@ -1,5 +1,13 @@
 <?php
+session_start();
 header('Content-Type: application/json');
+
+// Verifica se o usuário está logado e tem uma instituição atrelada
+if (!isset($_SESSION['usuario_id']) || !isset($_SESSION['instituicao_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Acesso negado. Usuário não autenticado.']);
+    exit;
+}
+
 require 'conexao.php'; // Usa seu $pdo
 
 $response = ['success' => false, 'produto' => null];
@@ -13,9 +21,11 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 $produto_id = (int)$_GET['id'];
 
 try {
-    $sql = "SELECT * FROM produtos WHERE id = ?";
+    $instituicao_id = $_SESSION['instituicao_id'];
+    
+    $sql = "SELECT * FROM produtos WHERE id = ? AND instituicao_id = ?";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$produto_id]);
+    $stmt->execute([$produto_id, $instituicao_id]);
     $produto = $stmt->fetch();
 
     if ($produto) {
@@ -26,7 +36,9 @@ try {
     }
 
 } catch (PDOException $e) {
-    $response['message'] = 'Erro de SQL: ' . $e->getMessage();
+    // Retorna mensagem genérica para não expor estrutura do banco de dados
+    $response['message'] = 'Erro interno ao buscar o produto.';
+    // error_log($e->getMessage()); // Descomente para logar o erro no servidor
 }
 
 echo json_encode($response);
