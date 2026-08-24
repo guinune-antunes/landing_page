@@ -21,6 +21,14 @@ $loja = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$loja) die("Instituição não encontrada.");
 
+// Parse dos módulos contratados
+$modulos = [];
+if (!empty($loja['modulos_contratados'])) {
+    $modulos = json_decode($loja['modulos_contratados'], true);
+}
+// Helper
+function temMod($m, $modulos) { return isset($modulos[$m]) && $modulos[$m] == true; }
+
 // 2. Busca os Usuários desta Instituição
 $stmt_users = $pdo->prepare("SELECT id, nome, email, cargo, ativo FROM usuarios WHERE instituicao_id = ? ORDER BY cargo, nome");
 $stmt_users->execute([$id_loja]);
@@ -87,6 +95,59 @@ include 'includes/_head.php';
                 <?php endif; ?>
             </tbody>
         </table>
+    </div>
+
+    <!-- GESTÃO DE MÓDULOS -->
+    <div class="widget-card" style="margin-top: 20px;">
+        <h3 style="margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px;">
+            <i class="fas fa-cubes" style="color: #9b59b6;"></i> Módulos Contratados
+        </h3>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 20px;">
+            Ative ou desative as funcionalidades para esta instituição. Isso refletirá imediatamente no menu lateral da equipe da loja.
+        </p>
+
+        <form id="form-modulos">
+            <input type="hidden" id="mod-loja-id" value="<?php echo $loja['id']; ?>">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="agenda" <?php echo temMod('agenda', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-calendar-alt"></i> Agenda</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="clientes" <?php echo temMod('clientes', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-users"></i> Clientes & Pets</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="financeiro" <?php echo temMod('financeiro', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-shopping-cart"></i> Caixa / PDV</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="estoque" <?php echo temMod('estoque', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-box"></i> Estoque & Produtos</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="crm_vendas" <?php echo temMod('crm_vendas', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-headset"></i> CRM Vendas Ativas</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="relatorios" <?php echo temMod('relatorios', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-chart-line"></i> Relatórios Gerenciais</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="equipe" <?php echo temMod('equipe', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-id-badge"></i> Gestão de Equipe</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" class="chk-mod" value="clinica" <?php echo temMod('clinica', $modulos) ? 'checked' : ''; ?>>
+                    <span><i class="fas fa-notes-medical"></i> Clínica Veterinária</span>
+                </label>
+            </div>
+
+            <button type="button" id="btn-salvar-modulos" class="btn btn-primary" style="width: 100%; background: #8e44ad; border-color: #8e44ad;">
+                <i class="fas fa-save"></i> Salvar Módulos
+            </button>
+        </form>
     </div>
 
     <div> <div class="widget-card" style="margin-bottom: 20px;">
@@ -180,6 +241,38 @@ document.querySelectorAll('.btn-reset-senha').forEach(btn => {
                 this.disabled = false;
             });
         }
+    });
+});
+
+// Lógica de Salvar Módulos Contratados
+document.getElementById('btn-salvar-modulos').addEventListener('click', function() {
+    const id = document.getElementById('mod-loja-id').value;
+    const checkboxes = document.querySelectorAll('.chk-mod');
+    const modulosAtivos = [];
+    
+    checkboxes.forEach(chk => {
+        if (chk.checked) modulosAtivos.push(chk.value);
+    });
+
+    const originalText = this.innerHTML;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+    this.disabled = true;
+
+    fetch('api_admin_salvar_modulos.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ instituicao_id: id, modulos: modulosAtivos })
+    })
+    .then(res => res.json())
+    .then(res => {
+        alert(res.message);
+        this.innerHTML = originalText;
+        this.disabled = false;
+    })
+    .catch(err => {
+        alert("Erro ao salvar módulos.");
+        this.innerHTML = originalText;
+        this.disabled = false;
     });
 });
 </script>

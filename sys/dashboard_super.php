@@ -15,6 +15,10 @@ if ($_SESSION['usuario_cargo'] !== 'Admin') {
 // SOLUÇÃO DO ERRO: Faltava incluir a conexão com o banco de dados!
 require 'conexao.php'; 
 
+$pageTitle = 'Dashboard Admin';
+$paginaAtiva = 'dashboard';
+include 'includes/_head.php';
+
 try {
     // --- 1. BUSCAR MÉTRICAS DO SISTEMA ---
     // Usamos um try/catch para evitar que a página quebre se a tabela 'instituicoes' ainda não existir

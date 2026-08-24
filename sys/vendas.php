@@ -34,8 +34,6 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
 
 <?php include 'includes/_sidebar.php'; ?>
 
-<?php include 'includes/_sidebar.php'; ?>
-
 <div class="main-area">
     <div class="content-wrapper">
         <?php include 'includes/_header.php'; ?>

@@ -17,14 +17,36 @@ if ($cargo !== 'Admin' && $usuario_id > 0) {
             $permissoes = json_decode($jsonPerm, true);
         }
     } catch (PDOException $e) {
-        // Silencia erro no menu, assume sem permissões extras
+        // Silencia erro no menu
+    }
+}
+
+// 2. Busca os Módulos Contratados da Instituição
+$modulos_instituicao = [];
+$id_loja = $_SESSION['instituicao_id'] ?? 0;
+if ($id_loja > 0) {
+    try {
+        $stmtMod = $pdo->prepare("SELECT modulos_contratados FROM instituicoes WHERE id = ?");
+        $stmtMod->execute([$id_loja]);
+        $jsonMod = $stmtMod->fetchColumn();
+        if ($jsonMod) {
+            $modulos_instituicao = json_decode($jsonMod, true);
+        }
+    } catch (PDOException $e) {
+        // Se a coluna ainda não existir, ignorar
     }
 }
 
 // Função auxiliar para verificar permissões modulares
 if (!function_exists('temPermissao')) {
-    function temPermissao($modulo, $permissoes, $cargo) {
-        if ($cargo === 'Gerente') return true; // Gerente sempre vê tudo na loja dele
+    function temPermissao($modulo, $permissoes, $cargo, $modulos_instituicao) {
+        // 1. Regra Mestra: Se a loja não contratou o módulo, NINGUÉM acessa
+        if (!empty($modulos_instituicao) && (!isset($modulos_instituicao[$modulo]) || $modulos_instituicao[$modulo] != true)) {
+            return false;
+        }
+
+        // 2. Se a loja tem o módulo, verifica a permissão do usuário
+        if ($cargo === 'Gerente') return true; 
         return isset($permissoes[$modulo]) && $permissoes[$modulo] == true;
     }
 }
@@ -61,31 +83,31 @@ if (!function_exists('temPermissao')) {
                 <i class="fas fa-tachometer-alt"></i> Dashboard
             </a>
 
-            <?php if (temPermissao('agenda', $permissoes, $cargo)): ?>
+            <?php if (temPermissao('agenda', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <a href="agenda.php" class="nav-item <?php echo ($paginaAtiva === 'agenda') ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-alt"></i> Agenda
                 </a>
             <?php endif; ?>
 
-            <?php if (temPermissao('clientes', $permissoes, $cargo)): ?>
+            <?php if (temPermissao('clientes', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <a href="clientes.php" class="nav-item <?php echo ($paginaAtiva === 'clientes') ? 'active' : ''; ?>">
                     <i class="fas fa-users"></i> Clientes & Pets
                 </a>
             <?php endif; ?>
             
-            <?php if (temPermissao('financeiro', $permissoes, $cargo)): ?>
+            <?php if (temPermissao('financeiro', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <a href="vendas.php" class="nav-item <?php echo ($paginaAtiva === 'vendas') ? 'active' : ''; ?>">
                     <i class="fas fa-shopping-cart"></i> Caixa (PDV)
                 </a>
             <?php endif; ?>
 
-            <?php if (temPermissao('estoque', $permissoes, $cargo)): ?>
+            <?php if (temPermissao('estoque', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <a href="painel_estoque.php" class="nav-item <?php echo ($paginaAtiva === 'painel_estoque') ? 'active' : ''; ?>">
                     <i class="fas fa-clipboard-list"></i> Tarefas do Estoque
                 </a>
             <?php endif; ?>
 
-            <?php if (temPermissao('crm_vendas', $permissoes, $cargo)): ?>
+            <?php if (temPermissao('crm_vendas', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <a href="crm_vendas.php" class="nav-item <?php echo ($paginaAtiva === 'crm_vendas') ? 'active' : ''; ?>">
                     <i class="fas fa-headset"></i> CRM Vendas Ativas
                 </a>
@@ -94,24 +116,30 @@ if (!function_exists('temPermissao')) {
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
                 <small style="padding-left: 25px; color: #95a5a6; text-transform: uppercase; font-size: 0.7rem; font-weight: bold; letter-spacing: 1px;">Gestão</small>
 
-                <a href="relatorio_financeiro.php" class="nav-item <?php echo ($paginaAtiva === 'relatorios') ? 'active' : ''; ?>">
-                    <i class="fas fa-chart-line"></i> Relatório Financeiro
-                </a>
+                <?php if (temPermissao('relatorios', $permissoes, $cargo, $modulos_instituicao)): ?>
+                    <a href="relatorio_financeiro.php" class="nav-item <?php echo ($paginaAtiva === 'relatorios') ? 'active' : ''; ?>">
+                        <i class="fas fa-chart-line"></i> Relatório Financeiro
+                    </a>
+                <?php endif; ?>
 
-                <a href="usuarios.php" class="nav-item <?php echo ($paginaAtiva === 'equipe') ? 'active' : ''; ?>">
-                    <i class="fas fa-id-badge"></i> Minha Equipe
-                </a>
+                <?php if (temPermissao('equipe', $permissoes, $cargo, $modulos_instituicao)): ?>
+                    <a href="usuarios.php" class="nav-item <?php echo ($paginaAtiva === 'equipe') ? 'active' : ''; ?>">
+                        <i class="fas fa-id-badge"></i> Minha Equipe
+                    </a>
+                <?php endif; ?>
                 
-                <a href="produtos.php" class="nav-item <?php echo ($paginaAtiva === 'produtos') ? 'active' : ''; ?>">
-                    <i class="fas fa-box-open"></i> Produtos
-                </a>
+                <?php if (temPermissao('estoque', $permissoes, $cargo, $modulos_instituicao)): ?>
+                    <a href="produtos.php" class="nav-item <?php echo ($paginaAtiva === 'produtos') ? 'active' : ''; ?>">
+                        <i class="fas fa-box-open"></i> Produtos
+                    </a>
+                <?php endif; ?>
 
                 <a href="#" class="nav-item">
                     <i class="fas fa-cog"></i> Config. da Loja
                 </a>
             <?php endif; ?>
 
-            <?php if ($cargo === 'Veterinário'): ?>
+            <?php if ($cargo === 'Veterinário' && temPermissao('clinica', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
                 <small style="padding-left: 25px; color: #95a5a6; text-transform: uppercase; font-size: 0.7rem; font-weight: bold; letter-spacing: 1px;">Clínica</small>
                 

@@ -14,10 +14,20 @@ $data = json_decode(file_get_contents('php://input'), true);
 try {
     $pdo->beginTransaction();
 
-    // CORREÇÃO 2: Removida a coluna 'plano' para evitar erro de SQL (pois ela não existe na tabela)
-    $sqlInst = "INSERT INTO instituicoes (nome_fantasia, cnpj) VALUES (?, ?)";
+    $modulosPadrao = json_encode([
+        'agenda' => true,
+        'clientes' => true,
+        'financeiro' => true,
+        'estoque' => true,
+        'crm_vendas' => true,
+        'relatorios' => true,
+        'equipe' => true,
+        'clinica' => true
+    ]);
+
+    $sqlInst = "INSERT INTO instituicoes (nome_fantasia, cnpj, modulos_contratados) VALUES (?, ?, ?)";
     $stmt = $pdo->prepare($sqlInst);
-    $stmt->execute([$data['nome_fantasia'], $data['cnpj']]);
+    $stmt->execute([$data['nome_fantasia'], $data['cnpj'], $modulosPadrao]);
     
     $novaInstituicaoId = $pdo->lastInsertId();
 

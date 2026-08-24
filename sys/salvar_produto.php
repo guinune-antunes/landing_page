@@ -24,7 +24,7 @@ $marca = !empty($data['marca']) ? $data['marca'] : null;
 try {
     if (empty($data['id'])) {
         // --- NOVO PRODUTO (INSERT) com instituicao_id ---
-        $sql = "INSERT INTO produtos (instituicao_id, nome, marca, descricao, quantidade, unidade, data_vencimento, data_chegada) 
+        $sql = "INSERT INTO produtos (instituicao_id, nome_produto, marca, descricao, quantidade_estoque, unidade, data_validade, data_chegada) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -41,12 +41,12 @@ try {
     } else {
         // --- PRODUTO EXISTENTE (UPDATE) com filtro de instituicao_id ---
         $sql = "UPDATE produtos SET 
-                    nome = ?, 
+                    nome_produto = ?, 
                     marca = ?, 
                     descricao = ?,
-                    quantidade = ?, 
+                    quantidade_estoque = ?, 
                     unidade = ?, 
-                    data_vencimento = ?, 
+                    data_validade = ?, 
                     data_chegada = ? 
                 WHERE 
                     id = ? AND instituicao_id = ?";

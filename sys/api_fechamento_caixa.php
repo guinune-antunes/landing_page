@@ -11,7 +11,7 @@ $id_loja = $_SESSION['instituicao_id'];
 
 try {
     // 1. Totais Financeiros
-    $sqlTotais = "SELECT forma_pagamento, SUM(total_venda) as total 
+    $sqlTotais = "SELECT forma_pagamento, SUM(valor_total) as total 
                   FROM vendas 
                   WHERE instituicao_id = ? AND DATE(data_venda) = CURRENT_DATE() 
                   GROUP BY forma_pagamento";
@@ -20,11 +20,11 @@ try {
     $resumoFinanceiro = $stmt->fetchAll();
 
     // 2. Itens Vendidos
-    $sqlItens = "SELECT i.nome_item, SUM(i.quantidade) as qtd, SUM(i.subtotal) as total
-                 FROM itens_venda i
+    $sqlItens = "SELECT i.nome_produto as nome_item, SUM(i.quantidade) as qtd, SUM(i.subtotal) as total
+                 FROM venda_itens i
                  JOIN vendas v ON i.venda_id = v.id
                  WHERE v.instituicao_id = ? AND DATE(v.data_venda) = CURRENT_DATE()
-                 GROUP BY i.nome_item
+                 GROUP BY i.nome_produto
                  ORDER BY qtd DESC";
     $stmt2 = $pdo->prepare($sqlItens);
     $stmt2->execute([$id_loja]);

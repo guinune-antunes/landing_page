@@ -20,7 +20,7 @@ try {
     }
 
     // 2. Apenas Gerente/Admin da Loja
-    if ($_SESSION['usuario_cargo'] !== 'gerente' && $_SESSION['usuario_cargo'] !== 'admin') {
+    if ($_SESSION['usuario_cargo'] !== 'Gerente' && $_SESSION['usuario_cargo'] !== 'Admin') {
         throw new Exception('Sem permissão.');
     }
 
@@ -29,7 +29,7 @@ try {
 
     // === SEGURANÇA CRÍTICA (ANTI-GOLPE) ===
     // Impede que o gerente tente criar ou promover alguém a Super Admin
-    if ($data['cargo'] === 'super_admin') {
+    if ($data['cargo'] === 'Admin') {
         throw new Exception('Ação proibida: Você não pode criar Super Administradores.');
     }
     // =======================================
@@ -44,7 +44,7 @@ try {
 
         $senhaHash = password_hash($data['senha'], PASSWORD_DEFAULT);
         
-        $sql = "INSERT INTO usuarios (nome, email, senha, cargo, instituicao_id, ativo) 
+        $sql = "INSERT INTO usuarios (nome, email, senha_hash, cargo, instituicao_id, ativo) 
                 VALUES (?, ?, ?, ?, ?, 1)";
         
         $stmt = $pdo->prepare($sql);
@@ -64,13 +64,13 @@ try {
         if (!$alvo) {
             throw new Exception("Usuário não encontrado.");
         }
-        if ($alvo['cargo'] === 'super_admin') {
+        if ($alvo['cargo'] === 'Admin') {
             throw new Exception("Ação proibida: Alvo protegido.");
         }
 
         if (!empty($data['senha'])) {
             $senhaHash = password_hash($data['senha'], PASSWORD_DEFAULT);
-            $sql = "UPDATE usuarios SET nome=?, email=?, cargo=?, senha=? WHERE id=?";
+            $sql = "UPDATE usuarios SET nome=?, email=?, cargo=?, senha_hash=? WHERE id=?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$data['nome'], $data['email'], $data['cargo'], $senhaHash, $data['id']]);
             $msg = "Dados e senha atualizados!";

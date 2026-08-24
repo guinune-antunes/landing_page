@@ -10,7 +10,7 @@ include 'includes/_head.php';
 require 'conexao.php'; // Usa $pdo
 
 // Pega os dados dos produtos para a tabela
-$stmt_produtos = $pdo->query("SELECT * FROM produtos ORDER BY nome");
+$stmt_produtos = $pdo->query("SELECT * FROM produtos ORDER BY nome_produto");
 $produtos = $stmt_produtos->fetchAll();
 ?>
 
@@ -50,14 +50,14 @@ $produtos = $stmt_produtos->fetchAll();
                         <?php if (count($produtos) > 0): ?>
                             <?php foreach ($produtos as $produto): ?>
                                 <tr data-id="<?php echo $produto['id']; ?>">
-                                    <td><?php echo htmlspecialchars($produto['nome']); ?></td>
+                                    <td><?php echo htmlspecialchars($produto['nome_produto']); ?></td>
                                     <td><?php echo htmlspecialchars($produto['marca']); ?></td>
-                                    <td><?php echo $produto['quantidade'] . ' ' . $produto['unidade']; ?></td>
+                                    <td><?php echo $produto['quantidade_estoque'] . ' ' . $produto['unidade']; ?></td>
                                     <td><?php echo date('d/m/Y', strtotime($produto['data_chegada'])); ?></td>
                                     <td>
                                         <?php 
-                                        if (!empty($produto['data_vencimento'])) {
-                                            echo date('d/m/Y', strtotime($produto['data_vencimento']));
+                                        if (!empty($produto['data_validade'])) {
+                                            echo date('d/m/Y', strtotime($produto['data_validade']));
                                         } else {
                                             echo 'N/A';
                                         }

@@ -1,7 +1,7 @@
 <?php
 require 'includes/verifica_login.php';
 // Apenas Gerente/Admin
-if ($_SESSION['usuario_cargo'] !== 'gerente' && $_SESSION['usuario_cargo'] !== 'admin') {
+if ($_SESSION['usuario_cargo'] !== 'Gerente' && $_SESSION['usuario_cargo'] !== 'Admin') {
     header("Location: dashboard.php"); exit;
 }
 
@@ -18,10 +18,10 @@ $ano_atual = date('Y');
 // Buscamos: Data, Faturamento Total e Custo Estimado dos produtos vendidos
 $sqlChart = "SELECT 
                 DATE(v.data_venda) as dia,
-                SUM(v.total_venda) as faturamento,
+                SUM(v.valor_total) as faturamento,
                 SUM(
                     (SELECT SUM(iv.quantidade * p.preco_custo) 
-                     FROM itens_venda iv 
+                     FROM venda_itens iv 
                      JOIN produtos p ON iv.produto_id = p.id 
                      WHERE iv.venda_id = v.id)
                 ) as custo_estimado
