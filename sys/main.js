@@ -232,7 +232,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (targetButton.classList.contains('btn-delete')) {
                     if (confirm(`Tem certeza que deseja excluir o produto ID ${productId}?`)) {
-                        fetch(`excluir_produto.php?id=${productId}`)
+                        fetch('excluir_produto.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: productId })
+                        })
                         .then(response => response.json())
                         .then(result => {
                             alert(result.message);
@@ -487,7 +491,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (targetButton.classList.contains('btn-delete')) {
                     if (confirm(`Tem certeza que deseja excluir o cliente ID ${clientId}?`)) {
-                        fetch(`excluir_cliente.php?id=${clientId}`, { method: 'DELETE' })
+                        fetch('excluir_cliente.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: clientId })
+                        })
                         .then(response => response.json())
                         .then(result => {
                             alert(result.message);

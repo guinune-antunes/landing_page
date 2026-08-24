@@ -1,10 +1,23 @@
 <?php
+// ══════════════════════════════════════════════════════════
+// TRAVA DE SEGURANÇA: Bloqueia se já existe um Super Admin
+// ══════════════════════════════════════════════════════════
+require 'conexao.php';
+$checkAdmin = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE cargo IN ('Admin', 'super_admin')")->fetchColumn();
+if ($checkAdmin > 0) {
+    die("<html><body style='font-family:Poppins,sans-serif;background:#2c3e50;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;'>
+         <div style='background:white;padding:40px;border-radius:10px;text-align:center;max-width:450px;box-shadow:0 10px 25px rgba(0,0,0,0.2);'>
+         <h2 style='color:#e74c3c;'>⛔ Acesso Bloqueado</h2>
+         <p style='color:#666;'>O Setup inicial já foi realizado. Esta página não está mais disponível.</p>
+         <a href='login.php' style='display:inline-block;margin-top:15px;padding:10px 25px;background:#1abc9c;color:white;text-decoration:none;border-radius:5px;'>Ir para o Login</a>
+         </div></body></html>");
+}
+
 // Processamento do Formulário
 $mensagem = '';
 $tipo_msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require 'conexao.php';
 
     $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_STRING);
     $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);

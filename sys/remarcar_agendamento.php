@@ -1,7 +1,9 @@
 <?php
-// remarcar_agendamento.php
-header('Content-Type: application/json');
-require 'conexao.php'; // Usa seu $pdo
+// ══════════════════════════════════════════════════════════════
+// remarcar_agendamento.php — Remarca um agendamento existente
+// ══════════════════════════════════════════════════════════════
+require 'seguranca_api.php';
+exigirMetodo('POST');
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -17,12 +19,12 @@ try {
     // Inicia a transação
     $pdo->beginTransaction();
 
-    // 2. ATUALIZA o agendamento antigo
-    $sql_update = "UPDATE agendamentos SET status = 'Remarcado' WHERE id = ?";
+    // 2. ATUALIZA o agendamento antigo (com filtro de loja para segurança)
+    $sql_update = "UPDATE agendamentos SET status = 'Remarcado' WHERE id = ? AND instituicao_id = ?";
     $stmt_update = $pdo->prepare($sql_update);
-    $stmt_update->execute([$id_antigo]);
+    $stmt_update->execute([$id_antigo, $id_loja]);
     
-    // 3. CRIA o novo agendamento (a cópia)
+    // 3. CRIA o novo agendamento (a cópia) com instituicao_id
     
     // Calcula as novas datas
     $data_hora_inicio = $novos['date'] . ' ' . $novos['time'] . ':00';
@@ -31,12 +33,13 @@ try {
     $data_hora_fim = $data_hora_fim_obj->format('Y-m-d H:i:s');
 
     $sql_insert = "INSERT INTO agendamentos 
-        (cliente_id, pet_id, servico, profissional, data_hora_inicio, data_hora_fim, observacoes, status) 
+        (instituicao_id, cliente_id, pet_id, servico, profissional, data_hora_inicio, data_hora_fim, observacoes, status) 
         VALUES 
-        (?, ?, ?, ?, ?, ?, ?, 'Agendado')";
+        (?, ?, ?, ?, ?, ?, ?, ?, 'Agendado')";
     
     $stmt_insert = $pdo->prepare($sql_insert);
     $stmt_insert->execute([
+        $id_loja,                // Vincula à loja do usuário logado
         $novos['cliente_id'], 
         $novos['pet_id'], 
         $novos['servico'], 
@@ -53,7 +56,8 @@ try {
 
 } catch (Exception $e) {
     // Se algo der errado, desfaz tudo
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo json_encode(['success' => false, 'message' => 'Erro interno ao remarcar.']);
 }
-?>
