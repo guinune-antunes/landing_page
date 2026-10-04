@@ -9,11 +9,21 @@ $senha_digitada = $_POST['senha'] ?? '';
 try {
     if ($email && $senha_digitada) {
         // 1. ADICIONADO: Coluna 'precisa_mudar_senha' incluída na busca
-        $stmt = $pdo->prepare("SELECT id, nome, email, senha_hash, cargo, instituicao_id, precisa_mudar_senha FROM usuarios WHERE email = ? AND ativo = 1");
+        //    + status da instituição (lojas bloqueadas não fazem login)
+        $stmt = $pdo->prepare("SELECT u.id, u.nome, u.email, u.senha_hash, u.cargo, u.instituicao_id, u.precisa_mudar_senha, i.ativo AS instituicao_ativa
+                               FROM usuarios u
+                               LEFT JOIN instituicoes i ON i.id = u.instituicao_id
+                               WHERE u.email = ? AND u.ativo = 1");
         $stmt->execute([$email]);
         $usuario = $stmt->fetch();
 
         if ($usuario && password_verify($senha_digitada, $usuario['senha_hash'])) {
+
+            // Instituição bloqueada pelo Admin do SaaS
+            if (!empty($usuario['instituicao_id']) && (int)$usuario['instituicao_ativa'] === 0) {
+                header("Location: login.php?erro=bloqueado");
+                exit;
+            }
             
             // Salva os dados vitais na sessão
             $_SESSION['usuario_id'] = $usuario['id'];

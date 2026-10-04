@@ -3,7 +3,7 @@
 // TRAVA DE SEGURANÇA: Bloqueia se já existe um Super Admin
 // ══════════════════════════════════════════════════════════
 require 'conexao.php';
-$checkAdmin = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE cargo IN ('Admin', 'super_admin')")->fetchColumn();
+$checkAdmin = $pdo->query("SELECT COUNT(*) FROM usuarios WHERE cargo = 'Admin'")->fetchColumn();
 if ($checkAdmin > 0) {
     die("<html><body style='font-family:Poppins,sans-serif;background:#2c3e50;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;'>
          <div style='background:white;padding:40px;border-radius:10px;text-align:center;max-width:450px;box-shadow:0 10px 25px rgba(0,0,0,0.2);'>
@@ -19,12 +19,18 @@ $tipo_msg = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $nome = filter_input(INPUT_POST, 'nome', FILTER_SANITIZE_STRING);
-    $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
-    $senha = $_POST['senha'];
-    $senha_confirma = $_POST['senha_confirma'];
+    $nome = trim($_POST['nome'] ?? '');
+    $email = filter_input(INPUT_POST, 'email', FILTER_VALIDATE_EMAIL);
+    $senha = $_POST['senha'] ?? '';
+    $senha_confirma = $_POST['senha_confirma'] ?? '';
 
-    if ($senha !== $senha_confirma) {
+    if ($nome === '' || !$email) {
+        $mensagem = "Informe um nome e um e-mail válido.";
+        $tipo_msg = "error";
+    } elseif (strlen($senha) < 6) {
+        $mensagem = "A senha deve ter no mínimo 6 caracteres.";
+        $tipo_msg = "error";
+    } elseif ($senha !== $senha_confirma) {
         $mensagem = "As senhas não conferem!";
         $tipo_msg = "error";
     } else {
@@ -33,8 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             // Insere o Super Admin (instituicao_id é NULL pois ele é dono do SaaS)
-            $sql = "INSERT INTO usuarios (nome, email, senha, cargo, instituicao_id, ativo) 
-                    VALUES (?, ?, ?, 'super_admin', NULL, 1)";
+            $sql = "INSERT INTO usuarios (nome, email, senha_hash, cargo, instituicao_id, precisa_mudar_senha, ativo) 
+                    VALUES (?, ?, ?, 'Admin', NULL, 0, 1)";
             
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$nome, $email, $senhaHash]);
@@ -45,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($e->getCode() == 23000) {
                 $mensagem = "Este e-mail já está cadastrado.";
             } else {
-                $mensagem = "Erro ao criar: " . $e->getMessage();
+                $mensagem = "Erro ao criar: " . htmlspecialchars($e->getMessage());
             }
             $tipo_msg = "error";
         }

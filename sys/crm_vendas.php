@@ -76,6 +76,16 @@ usort($oportunidades_quentes, function($a, $b) {
                 <p style="color: #777;">Previsão inteligente de consumo baseada na Necessidade Energética (NE) do pet.</p>
             </div>
 
+            <!-- SUB-NAV CRM TABS -->
+            <div style="display: flex; gap: 12px; margin-bottom: 25px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+                <a href="crm_vendas.php" class="btn" style="background: #1abc9c; color: white; padding: 10px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-calculator"></i> CRM Reposição Nutricional
+                </a>
+                <a href="fidelizacao.php" class="btn" style="background: white; color: #475569; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: 10px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-award" style="color: #f1c40f;"></i> Programa de Fidelização & Promoções
+                </a>
+            </div>
+
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px;">
                 
                 <?php foreach ($oportunidades_quentes as $op): 

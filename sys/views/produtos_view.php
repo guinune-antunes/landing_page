@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('prod-nome').value = p.nome_produto;
             document.getElementById('prod-codigo').value = p.codigo_barras || '';
             document.getElementById('prod-descricao').value = p.descricao || '';
-            document.getElementById('prod-custo').value = p.valor_compra || '';
+            document.getElementById('prod-custo').value = p.preco_custo || '';
             document.getElementById('prod-preco').value = p.preco_venda;
             document.getElementById('prod-estoque').value = p.quantidade_estoque;
             document.getElementById('prod-peso').value = p.tamanho_embalagem_kg || '';

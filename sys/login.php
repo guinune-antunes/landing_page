@@ -19,7 +19,9 @@
     <div class="login-card">
         <h2>PetCRM Login</h2>
         
-        <?php if(isset($_GET['erro'])): ?>
+        <?php if(isset($_GET['erro']) && $_GET['erro'] === 'bloqueado'): ?>
+            <div class="error-msg" style="display: block;">Acesso suspenso: esta loja está bloqueada. Entre em contato com o suporte.</div>
+        <?php elseif(isset($_GET['erro'])): ?>
             <div class="error-msg" style="display: block;">E-mail ou senha incorretos.</div>
         <?php endif; ?>
 

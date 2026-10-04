@@ -7,8 +7,8 @@ if (session_status() === PHP_SESSION_NONE) {
 // Verifica se a variável de identificação do usuário existe
 if (!isset($_SESSION['usuario_id'])) {
     // Se não existir, ele não fez o login pelo auth.php!
-    // Expulsa ele de volta para a tela de login
-    header("Location: ../login.php?erro=negado");
+    // Expulsa ele de volta para a tela de login correta em /sys/login.php
+    header("Location: login.php?erro=negado");
     exit;
 }
 

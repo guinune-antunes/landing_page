@@ -20,7 +20,7 @@ try {
 
         $total_produtos = 0;
         // O INSERT agora tem 10 colunas em vez de 6
-        $sql = "INSERT INTO produtos (instituicao_id, nome_produto, descricao, codigo_barras, valor_compra, preco_venda, quantidade_estoque, tamanho_embalagem_kg, fornecedor, data_fabricacao, data_validade) 
+        $sql = "INSERT INTO produtos (instituicao_id, nome_produto, descricao, codigo_barras, preco_custo, preco_venda, quantidade_estoque, tamanho_embalagem_kg, fornecedor, data_fabricacao, data_validade) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
 

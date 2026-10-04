@@ -35,7 +35,7 @@ $stmt_users->execute([$id_loja]);
 $usuarios_loja = $stmt_users->fetchAll(PDO::FETCH_ASSOC);
 
 $pageTitle = 'Gerenciar: ' . htmlspecialchars($loja['nome_fantasia']);
-$paginaAtiva = 'super_admin_lojas';
+$paginaAtiva = 'clientes';
 include 'includes/_head.php';
 ?>
 
@@ -48,9 +48,9 @@ include 'includes/_head.php';
         <main class="main-content">
             <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <a href="super_admin_lojas.php" style="color: #777; text-decoration: none; font-size: 0.9rem;"><i class="fas fa-arrow-left"></i> Voltar</a>
+                    <a href="super_admin_clientes.php" style="color: #777; text-decoration: none; font-size: 0.9rem;"><i class="fas fa-arrow-left"></i> Voltar</a>
                     <h1 class="main-title" style="margin-top: 5px;">Gestão: <?php echo htmlspecialchars($loja['nome_fantasia']); ?></h1>
-                    <p style="color: #777;">CNPJ: <?php echo htmlspecialchars($loja['cnpj']); ?></p>
+                    <p style="color: #777;">CNPJ: <?php echo htmlspecialchars($loja['cnpj'] ?? 'Não informado'); ?></p>
                 </div>
             </div>
 

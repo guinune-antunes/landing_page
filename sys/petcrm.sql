@@ -26,7 +26,9 @@ CREATE TABLE `instituicoes` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `nome_fantasia` varchar(200) NOT NULL,
   `cnpj` varchar(20) DEFAULT NULL,
+  `plano` varchar(30) DEFAULT NULL,
   `modulos_contratados` json DEFAULT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
   `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -270,6 +272,86 @@ CREATE TABLE `tarefas_estoque` (
   KEY `fk_tarefas_resolvedor` (`resolvido_por`),
   CONSTRAINT `fk_tarefas_instituicoes` FOREIGN KEY (`instituicao_id`) REFERENCES `instituicoes` (`id`) ON UPDATE CASCADE,
   CONSTRAINT `fk_tarefas_resolvedor` FOREIGN KEY (`resolvido_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+-- 12. FIDELIZAÇÃO E PROMOÇÕES (CRM)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `fidelidade_config` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `tipo_programa` enum('selos','pontos','hibrido') NOT NULL DEFAULT 'selos',
+  `compras_para_recompensa` int(11) NOT NULL DEFAULT 10,
+  `recompensa_tipo` enum('desconto_percentual','desconto_fixo','produto_gratis','cashback') NOT NULL DEFAULT 'desconto_percentual',
+  `recompensa_valor` decimal(10,2) NOT NULL DEFAULT 15.00,
+  `limite_desconto_recompensa` decimal(10,2) NOT NULL DEFAULT 50.00,
+  `reais_por_ponto` decimal(10,2) NOT NULL DEFAULT 1.00,
+  `cashback_percentual` decimal(5,2) NOT NULL DEFAULT 5.00,
+  `validade_meses` int(11) NOT NULL DEFAULT 6,
+  `notificar_expiracao` tinyint(1) NOT NULL DEFAULT 1,
+  `dias_aviso_expiracao` int(11) NOT NULL DEFAULT 15,
+  `notificar_whatsapp` tinyint(1) NOT NULL DEFAULT 1,
+  `notificar_email` tinyint(1) NOT NULL DEFAULT 0,
+  `cor_cartao_hex` varchar(20) NOT NULL DEFAULT '#1abc9c',
+  `cor_cartao_secundaria` varchar(20) NOT NULL DEFAULT '#2c3e50',
+  `estilo_cartao` varchar(50) NOT NULL DEFAULT 'modern_gradient',
+  `logo_cartao` varchar(255) DEFAULT NULL,
+  `texto_cartao` varchar(200) NOT NULL DEFAULT 'Cartão Fidelidade Pet VIP',
+  `regras_aceleradores` json DEFAULT NULL,
+  `tiers_config` json DEFAULT NULL,
+  `data_atualizacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uidx_inst` (`instituicao_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `cliente_fidelidade` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `cliente_id` int(10) UNSIGNED NOT NULL,
+  `selos_atuais` int(11) NOT NULL DEFAULT 0,
+  `ciclos_completados` int(11) NOT NULL DEFAULT 0,
+  `pontos_acumulados` int(11) NOT NULL DEFAULT 0,
+  `saldo_cashback` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `tier_atual` varchar(50) NOT NULL DEFAULT 'Bronze',
+  `total_gasto_historico` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `ultimo_acesso` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uidx_inst_cli` (`instituicao_id`,`cliente_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `fidelidade_transacoes` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `cliente_id` int(10) UNSIGNED NOT NULL,
+  `tipo` enum('acumulo_selo','acumulo_pontos','resgate_recompensa','resgate_cashback','bonus_acelerador','expirado') NOT NULL,
+  `quantidade` int(11) NOT NULL DEFAULT 1,
+  `valor_recompensa` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `descricao` varchar(255) NOT NULL,
+  `usuario_operador` varchar(150) DEFAULT 'Sistema',
+  `data_transacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_inst_data` (`instituicao_id`,`data_transacao`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `promocoes` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `titulo` varchar(200) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `produto_id` int(10) UNSIGNED DEFAULT NULL,
+  `desconto_percentual` decimal(5,2) NOT NULL DEFAULT 0.00,
+  `preco_original` decimal(10,2) DEFAULT NULL,
+  `preco_promocional` decimal(10,2) DEFAULT NULL,
+  `imagem_url` varchar(255) DEFAULT NULL,
+  `data_inicio` datetime NOT NULL,
+  `data_fim` datetime NOT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_inst_ativo` (`instituicao_id`,`ativo`,`data_fim`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

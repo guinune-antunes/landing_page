@@ -63,9 +63,9 @@ try {
                                 <tr style="border-bottom: 1px solid #eee;">
                                     <td style="padding: 10px;">#<?php echo str_pad($inst['id'], 3, '0', STR_PAD_LEFT); ?></td>
                                     <td style="padding: 10px;"><strong><?php echo htmlspecialchars($inst['nome_fantasia']); ?></strong></td>
-                                    <td style="padding: 10px;"><?php echo htmlspecialchars($inst['cnpj']) ?: 'Não informado'; ?></td>
-                                    <td style="padding: 10px;">
-                                        <?php if ($inst['ativo']): ?>
+                                    <td style="padding: 10px;"><?php echo htmlspecialchars($inst['cnpj'] ?? '') ?: 'Não informado'; ?></td>
+                                    <td style="padding: 10px;" class="status-cell">
+                                        <?php if (!empty($inst['ativo'])): ?>
                                             <span style="background: #e0f8e9; color: #28a745; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem;">Ativo</span>
                                         <?php else: ?>
                                             <span style="background: #ffe5e5; color: #dc3545; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem;">Inativo</span>
@@ -76,7 +76,12 @@ try {
                                         <a href="gerenciar_instituicao.php?id=<?php echo $inst['id']; ?>" class="btn-icon" style="color: #3498db; text-decoration: none; display: inline-block; margin-right: 10px;" title="Gerenciar Instituição (Reset/Exportar)">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button class="btn-icon" style="color: #e74c3c; border: none; background: none; cursor: pointer;" title="Bloquear"><i class="fas fa-ban"></i></button>
+                                        <?php $ativo = !empty($inst['ativo']); ?>
+                                        <button class="btn-icon btn-toggle-status" data-id="<?php echo $inst['id']; ?>" data-nome="<?php echo htmlspecialchars($inst['nome_fantasia']); ?>" data-ativo="<?php echo $ativo ? 1 : 0; ?>"
+                                                style="color: <?php echo $ativo ? '#e74c3c' : '#28a745'; ?>; border: none; background: none; cursor: pointer;"
+                                                title="<?php echo $ativo ? 'Bloquear' : 'Desbloquear'; ?>">
+                                            <i class="fas <?php echo $ativo ? 'fa-ban' : 'fa-unlock'; ?>"></i>
+                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -145,6 +150,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if(btnAdd) btnAdd.onclick = () => modal.style.display = 'flex';
     closeBtns.forEach(btn => btn.onclick = () => modal.style.display = 'none');
+
+    // Bloquear / Desbloquear instituição
+    const badgeAtivo = '<span style="background: #e0f8e9; color: #28a745; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem;">Ativo</span>';
+    const badgeInativo = '<span style="background: #ffe5e5; color: #dc3545; padding: 3px 8px; border-radius: 12px; font-size: 0.8rem;">Inativo</span>';
+
+    document.querySelectorAll('.btn-toggle-status').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const ativo = this.dataset.ativo === '1';
+            const acao = ativo ? 'BLOQUEAR' : 'DESBLOQUEAR';
+            if (!confirm(`Deseja ${acao} a instituição "${this.dataset.nome}"?` + (ativo ? '\n\nOs usuários dela não conseguirão mais fazer login.' : ''))) return;
+
+            this.disabled = true;
+            fetch('api_admin_status_instituicao.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: this.dataset.id })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (!res.success) { alert(res.message); return; }
+                const novoAtivo = res.ativo === 1;
+                this.dataset.ativo = novoAtivo ? '1' : '0';
+                this.title = novoAtivo ? 'Bloquear' : 'Desbloquear';
+                this.style.color = novoAtivo ? '#e74c3c' : '#28a745';
+                this.querySelector('i').className = 'fas ' + (novoAtivo ? 'fa-ban' : 'fa-unlock');
+                this.closest('tr').querySelector('.status-cell').innerHTML = novoAtivo ? badgeAtivo : badgeInativo;
+            })
+            .catch(err => { console.error(err); alert('Erro de comunicação com o servidor.'); })
+            .finally(() => { this.disabled = false; });
+        });
+    });
 
     btnSave.onclick = function() {
         const data = {

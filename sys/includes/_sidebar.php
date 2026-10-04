@@ -111,6 +111,9 @@ if (!function_exists('temPermissao')) {
                 <a href="crm_vendas.php" class="nav-item <?php echo ($paginaAtiva === 'crm_vendas') ? 'active' : ''; ?>">
                     <i class="fas fa-headset"></i> CRM Vendas Ativas
                 </a>
+                <a href="fidelizacao.php" class="nav-item <?php echo ($paginaAtiva === 'fidelizacao') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem;">
+                    <i class="fas fa-award" style="color: #f1c40f;"></i> Fidelização & Ofertas
+                </a>
             <?php endif; ?>
             <?php if ($cargo === 'Gerente'): ?>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>

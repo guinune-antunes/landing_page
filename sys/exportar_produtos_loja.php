@@ -9,7 +9,7 @@ if (!$id_loja) die("ID da instituição não fornecido.");
 
 try {
     $sql = "SELECT nome_produto AS Nome, descricao AS Descricao, codigo_barras AS Codigo_Barras, 
-                   valor_compra AS Custo, preco_venda AS Preco, quantidade_estoque AS Estoque, 
+                   preco_custo AS Custo, preco_venda AS Preco, quantidade_estoque AS Estoque, 
                    tamanho_embalagem_kg AS Peso_KG, fornecedor AS Fornecedor, 
                    data_fabricacao AS Fabricacao, data_validade AS Validade
             FROM produtos 
