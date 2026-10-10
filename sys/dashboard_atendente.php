@@ -10,10 +10,10 @@ $pageTitle = 'Painel do Atendente';
 require 'conexao.php';
 include 'includes/_head.php';
 
-// Busca as tarefas deste atendente
-$user_id = $_SESSION['usuario_id'];
-$stmt = $pdo->prepare("SELECT * FROM tarefas WHERE usuario_id = ? AND status = 'pendente' ORDER BY prioridade DESC, data_criacao ASC");
-$stmt->execute([$user_id]);
+// Busca as tarefas da instituição
+$instituicao_id = $_SESSION['instituicao_id'];
+$stmt = $pdo->prepare("SELECT * FROM tarefas_estoque WHERE instituicao_id = ? AND status = 'Pendente' ORDER BY data_criacao ASC");
+$stmt->execute([$instituicao_id]);
 $tarefas = $stmt->fetchAll();
 ?>
 
@@ -67,10 +67,13 @@ $tarefas = $stmt->fetchAll();
                             <li class="task-item" id="task-<?php echo $t['id']; ?>">
                                 <input type="checkbox" class="task-checkbox" onchange="concluirTarefa(<?php echo $t['id']; ?>)">
                                 <div class="task-content">
-                                    <div class="task-desc"><?php echo htmlspecialchars($t['descricao']); ?></div>
+                                    <div class="task-desc">
+                                        <strong><?php echo htmlspecialchars($t['titulo']); ?></strong><br>
+                                        <?php echo htmlspecialchars($t['descricao']); ?>
+                                    </div>
                                     <div class="task-meta">
-                                        <span class="badge badge-<?php echo $t['prioridade']; ?>">
-                                            <?php echo ucfirst($t['prioridade']); ?>
+                                        <span class="badge badge-info" style="background:#3498db;">
+                                            <?php echo htmlspecialchars($t['tipo']); ?>
                                         </span>
                                         Criado em: <?php echo date('d/m H:i', strtotime($t['data_criacao'])); ?>
                                     </div>

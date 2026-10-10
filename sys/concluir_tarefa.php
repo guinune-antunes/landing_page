@@ -14,11 +14,10 @@ $tarefa_id = $data['id'];
 $usuario_id = $_SESSION['usuario_id'];
 
 try {
-    // Atualiza para concluída E data de conclusão
-    // O WHERE usuario_id garante que um atendente não feche a tarefa do outro
-    $sql = "UPDATE tarefas SET status = 'concluida', data_conclusao = NOW() WHERE id = ? AND usuario_id = ?";
+    // Atualiza para concluída (Resolvido)
+    $sql = "UPDATE tarefas_estoque SET status = 'Resolvido', resolvido_em = NOW(), resolvido_por = ? WHERE id = ?";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$tarefa_id, $usuario_id]);
+    $stmt->execute([$usuario_id, $tarefa_id]);
 
     echo json_encode(['success' => true]);
 } catch (PDOException $e) {
