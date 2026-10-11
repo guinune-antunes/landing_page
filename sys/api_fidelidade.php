@@ -23,9 +23,283 @@ if ($id_loja <= 0) {
     exit;
 }
 
-$acao = $_POST['acao'] ?? $_GET['acao'] ?? '';
+$rawInput = file_get_contents('php://input');
+$inputData = json_decode($rawInput, true) ?: [];
+
+$acao = $_POST['acao'] ?? $_GET['acao'] ?? ($inputData['acao'] ?? '');
 
 try {
+    // ════════════════════════════════════════════════════════════
+    // 0. GESTÃO MODULAR DE REGRAS DE FIDELIDADE & DESCONTOS
+    // ════════════════════════════════════════════════════════════
+
+    // LISTAR REGRAS MODULARES DA LOJA
+    if ($acao === 'listar_regras') {
+        $sql = "SELECT r.*,
+                       CASE 
+                         WHEN r.categoria_alvo = 'item_especifico' THEN COALESCE(prod.nome_produto, serv.nome_servico, CONCAT('Item #', r.item_alvo_id))
+                         ELSE NULL 
+                       END as item_alvo_nome,
+                       CASE 
+                         WHEN r.recompensa_tipo = 'item_gratis' THEN COALESCE(rec_p.nome_produto, rec_s.nome_servico, CONCAT('Item #', r.recompensa_item_id))
+                         ELSE NULL 
+                       END as recompensa_item_nome,
+                       (SELECT COUNT(*) FROM cliente_progresso_regras cpr WHERE cpr.regra_id = r.id) as total_participantes,
+                       (SELECT COALESCE(SUM(cpr.ciclos_completados), 0) FROM cliente_progresso_regras cpr WHERE cpr.regra_id = r.id) as total_ciclos
+                FROM fidelidade_regras r
+                LEFT JOIN produtos prod ON (r.categoria_alvo = 'item_especifico' AND r.item_alvo_id = prod.id)
+                LEFT JOIN servicos serv ON (r.categoria_alvo = 'item_especifico' AND r.item_alvo_id = serv.id)
+                LEFT JOIN produtos rec_p ON (r.recompensa_tipo = 'item_gratis' AND r.recompensa_item_id = rec_p.id)
+                LEFT JOIN servicos rec_s ON (r.recompensa_tipo = 'item_gratis' AND r.recompensa_item_id = rec_s.id)
+                WHERE r.instituicao_id = ?
+                ORDER BY r.ativo DESC, r.id DESC";
+        $st = $pdo->prepare($sql);
+        $st->execute([$id_loja]);
+        $regras = $st->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['success' => true, 'regras' => $regras]);
+        exit;
+    }
+
+    // SALVAR OU EDITAR REGRA MODULAR
+    if ($acao === 'salvar_regra') {
+        $params = !empty($inputData) ? $inputData : $_POST;
+        $regra_id = intval($params['id'] ?? 0);
+        $nome_regra = trim($params['nome_regra'] ?? '');
+        $descricao = trim($params['descricao'] ?? '');
+        $tipo_mecanica = $params['tipo_mecanica'] ?? 'cartao_selos';
+        $categoria_alvo = $params['categoria_alvo'] ?? 'todos';
+        $item_alvo_id = !empty($params['item_alvo_id']) ? intval($params['item_alvo_id']) : null;
+        $condicao_tipo = $params['condicao_tipo'] ?? 'quantidade_compras';
+        $condicao_valor = floatval(str_replace(',', '.', $params['condicao_valor'] ?? '10'));
+        
+        $dias_semana_ativos = null;
+        if (!empty($params['dias_semana_ativos'])) {
+            $dias_semana_ativos = is_array($params['dias_semana_ativos']) ? json_encode($params['dias_semana_ativos']) : $params['dias_semana_ativos'];
+        }
+
+        $recompensa_tipo = $params['recompensa_tipo'] ?? 'desconto_percentual';
+        $recompensa_valor = floatval(str_replace(',', '.', $params['recompensa_valor'] ?? '15'));
+        $recompensa_item_id = !empty($params['recompensa_item_id']) ? intval($params['recompensa_item_id']) : null;
+        $limite_desconto = !empty($params['limite_desconto_recompensa']) ? floatval(str_replace(',', '.', $params['limite_desconto_recompensa'])) : null;
+        
+        $cor_hex = $params['cor_hex'] ?? '#1abc9c';
+        $cor_secundaria = $params['cor_secundaria'] ?? '#2c3e50';
+        $icone = $params['icone'] ?? 'fas fa-paw';
+        $texto_cartao = trim($params['texto_cartao'] ?? $nome_regra);
+        $ativo = isset($params['ativo']) ? (int)$params['ativo'] : 1;
+
+        if (empty($nome_regra)) {
+            echo json_encode(['success' => false, 'message' => 'O nome da regra é obrigatório.']);
+            exit;
+        }
+
+        if ($regra_id > 0) {
+            $stmt = $pdo->prepare("UPDATE fidelidade_regras SET 
+                nome_regra = ?, descricao = ?, tipo_mecanica = ?, categoria_alvo = ?, item_alvo_id = ?,
+                condicao_tipo = ?, condicao_valor = ?, dias_semana_ativos = ?, recompensa_tipo = ?,
+                recompensa_valor = ?, recompensa_item_id = ?, limite_desconto_recompensa = ?,
+                cor_hex = ?, cor_secundaria = ?, icone = ?, texto_cartao = ?, ativo = ?
+                WHERE id = ? AND instituicao_id = ?");
+            $stmt->execute([
+                $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id,
+                $condicao_tipo, $condicao_valor, $dias_semana_ativos, $recompensa_tipo,
+                $recompensa_valor, $recompensa_item_id, $limite_desconto,
+                $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo,
+                $regra_id, $id_loja
+            ]);
+            $msg = 'Regra de fidelidade atualizada com sucesso!';
+        } else {
+            $stmt = $pdo->prepare("INSERT INTO fidelidade_regras 
+                (instituicao_id, nome_regra, descricao, tipo_mecanica, categoria_alvo, item_alvo_id,
+                 condicao_tipo, condicao_valor, dias_semana_ativos, recompensa_tipo,
+                 recompensa_valor, recompensa_item_id, limite_desconto_recompensa,
+                 cor_hex, cor_secundaria, icone, texto_cartao, ativo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $id_loja, $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id,
+                $condicao_tipo, $condicao_valor, $dias_semana_ativos, $recompensa_tipo,
+                $recompensa_valor, $recompensa_item_id, $limite_desconto,
+                $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo
+            ]);
+            $regra_id = $pdo->lastInsertId();
+            $msg = 'Nova regra de fidelidade criada com sucesso!';
+        }
+
+        echo json_encode(['success' => true, 'message' => $msg, 'regra_id' => $regra_id]);
+        exit;
+    }
+
+    // EXCLUIR REGRA MODULAR
+    if ($acao === 'excluir_regra') {
+        $params = !empty($inputData) ? $inputData : $_POST;
+        $regra_id = intval($params['id'] ?? 0);
+        $pdo->prepare("DELETE FROM cliente_progresso_regras WHERE regra_id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja]);
+        $pdo->prepare("DELETE FROM fidelidade_regras WHERE id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja]);
+        echo json_encode(['success' => true, 'message' => 'Regra removida com sucesso!']);
+        exit;
+    }
+
+    // ALTERAR STATUS DA REGRA
+    if ($acao === 'toggle_regra') {
+        $params = !empty($inputData) ? $inputData : $_POST;
+        $regra_id = intval($params['id'] ?? 0);
+        $pdo->prepare("UPDATE fidelidade_regras SET ativo = 1 - ativo WHERE id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja]);
+        echo json_encode(['success' => true, 'message' => 'Status da regra alterado!']);
+        exit;
+    }
+
+    // VERIFICAR REGRAS APLICÁVEIS AO CARRINHO (AUTOMATIZAÇÃO DO BALCÃO / PDV)
+    if ($acao === 'verificar_regras_carrinho') {
+        $params = !empty($inputData) ? $inputData : $_POST;
+        $itens = $params['itens'] ?? [];
+        $cliente_id = !empty($params['cliente_id']) ? intval($params['cliente_id']) : null;
+        $total_venda = floatval($params['total_venda'] ?? 0);
+
+        // Busca regras modulares ativas
+        $stR = $pdo->prepare("SELECT * FROM fidelidade_regras WHERE instituicao_id = ? AND ativo = 1 ORDER BY id ASC");
+        $stR->execute([$id_loja]);
+        $regras = $stR->fetchAll(PDO::FETCH_ASSOC);
+
+        $diasMap = ['Sun'=>'dom', 'Mon'=>'seg', 'Tue'=>'ter', 'Wed'=>'qua', 'Thu'=>'qui', 'Fri'=>'sex', 'Sat'=>'sab'];
+        $hojeDia = $diasMap[date('D')];
+
+        // Busca se é aniversário do cliente
+        $aniversario_este_mes = false;
+        $cliente_info = null;
+        if ($cliente_id > 0) {
+            $stC = $pdo->prepare("SELECT id, nome_completo, telefone, data_nascimento FROM clientes WHERE id = ? AND instituicao_id = ?");
+            $stC->execute([$cliente_id, $id_loja]);
+            $cliente_info = $stC->fetch(PDO::FETCH_ASSOC);
+            if ($cliente_info && !empty($cliente_info['data_nascimento'])) {
+                $mesNasc = date('m', strtotime($cliente_info['data_nascimento']));
+                if ($mesNasc === date('m')) {
+                    $aniversario_este_mes = true;
+                }
+            }
+        }
+
+        $regras_elegiveis = [];
+
+        foreach ($regras as $r) {
+            $elegivel = false;
+
+            if ($r['categoria_alvo'] === 'todos') {
+                $elegivel = count($itens) > 0;
+            } elseif ($r['categoria_alvo'] === 'servicos') {
+                foreach ($itens as $it) {
+                    if (($it['id'] ?? 0) < 0 || stripos($it['nome'] ?? '', 'Banho') !== false || stripos($it['nome'] ?? '', 'Tosa') !== false || stripos($it['nome'] ?? '', 'Consulta') !== false) {
+                        $elegivel = true;
+                        break;
+                    }
+                }
+            } elseif ($r['categoria_alvo'] === 'produtos') {
+                foreach ($itens as $it) {
+                    if (($it['id'] ?? 0) > 0) {
+                        $elegivel = true;
+                        break;
+                    }
+                }
+            } elseif ($r['categoria_alvo'] === 'item_especifico') {
+                foreach ($itens as $it) {
+                    if (($it['id'] ?? 0) == $r['item_alvo_id']) {
+                        $elegivel = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($elegivel) {
+                if ($r['condicao_tipo'] === 'dia_semana' && !empty($r['dias_semana_ativos'])) {
+                    $diasAtivos = json_decode($r['dias_semana_ativos'], true) ?: [];
+                    if (!in_array($hojeDia, $diasAtivos)) {
+                        $elegivel = false;
+                    }
+                } elseif ($r['condicao_tipo'] === 'valor_minimo') {
+                    if ($total_venda < floatval($r['condicao_valor'])) {
+                        $elegivel = false;
+                    }
+                } elseif ($r['condicao_tipo'] === 'aniversario') {
+                    if (!$aniversario_este_mes) {
+                        $elegivel = false;
+                    }
+                }
+            }
+
+            if ($elegivel) {
+                $beneficio = '';
+                if ($r['recompensa_tipo'] === 'desconto_percentual') {
+                    $beneficio = number_format($r['recompensa_valor'], 0) . '% de Desconto';
+                } elseif ($r['recompensa_tipo'] === 'desconto_fixo') {
+                    $beneficio = 'R$ ' . number_format($r['recompensa_valor'], 2, ',', '.') . ' de Desconto';
+                } elseif ($r['recompensa_tipo'] === 'item_gratis') {
+                    $beneficio = 'Item / Serviço Grátis';
+                } elseif ($r['recompensa_tipo'] === 'cashback') {
+                    $beneficio = number_format($r['recompensa_valor'], 0) . '% de Cashback';
+                }
+
+                $regras_elegiveis[] = [
+                    'id' => (int)$r['id'],
+                    'nome_regra' => $r['nome_regra'],
+                    'tipo_mecanica' => $r['tipo_mecanica'],
+                    'meta' => floatval($r['condicao_valor']),
+                    'beneficio' => $beneficio,
+                    'cor_hex' => $r['cor_hex'],
+                    'cor_secundaria' => $r['cor_secundaria'],
+                    'icone' => $r['icone'],
+                    'texto_cartao' => $r['texto_cartao']
+                ];
+            }
+        }
+
+        // Se não houver regra modular customizada, verifica a config de fidelidade padrão
+        if (empty($regras_elegiveis)) {
+            $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
+            $stCfg->execute([$id_loja]);
+            $cfg = $stCfg->fetch(PDO::FETCH_ASSOC);
+
+            if ($cfg && count($itens) > 0) {
+                $regras_elegiveis[] = [
+                    'id' => 0,
+                    'nome_regra' => $cfg['texto_cartao'] ?: 'Cartão Fidelidade Pet VIP',
+                    'tipo_mecanica' => $cfg['tipo_programa'] ?: 'selos',
+                    'meta' => floatval($cfg['compras_para_recompensa'] ?: 10),
+                    'beneficio' => number_format($cfg['recompensa_valor'] ?: 15, 0) . '% de Desconto',
+                    'cor_hex' => $cfg['cor_cartao_hex'] ?: '#1abc9c',
+                    'cor_secundaria' => $cfg['cor_cartao_secundaria'] ?: '#2c3e50',
+                    'icone' => 'fas fa-paw',
+                    'texto_cartao' => $cfg['texto_cartao'] ?: 'Cartão Fidelidade Pet VIP'
+                ];
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'elegivel' => count($regras_elegiveis) > 0,
+            'regras' => $regras_elegiveis,
+            'cliente' => $cliente_info
+        ]);
+        exit;
+    }
+
+    // BUSCA DE PRODUTOS E SERVIÇOS PARA SELETORES DO CONSTRUTOR DE REGRAS
+    if ($acao === 'buscar_itens_loja') {
+        $stP = $pdo->prepare("SELECT id, nome_produto as nome, preco_venda as preco, 'produto' as tipo FROM produtos WHERE instituicao_id = ? ORDER BY nome_produto ASC");
+        $stP->execute([$id_loja]);
+        $prods = $stP->fetchAll(PDO::FETCH_ASSOC);
+
+        $stS = $pdo->prepare("SELECT id, nome_servico as nome, preco_padrao as preco, 'servico' as tipo FROM servicos WHERE instituicao_id = ? ORDER BY nome_servico ASC");
+        $stS->execute([$id_loja]);
+        $servs = $stS->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'success' => true,
+            'produtos' => $prods,
+            'servicos' => $servs
+        ]);
+        exit;
+    }
+
     // ════════════════════════════════════════════════════════════
     // 1. SALVAR CONFIGURAÇÕES DO PROGRAMA DE FIDELIDADE
     // ════════════════════════════════════════════════════════════

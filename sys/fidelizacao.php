@@ -520,7 +520,7 @@ include 'includes/_head.php';
                     <i class="fas fa-calculator"></i> CRM Reposição Nutricional
                 </a>
                 <button class="fid-tab-btn active" data-tab="tab-cartao">
-                    <i class="fas fa-id-card"></i> 1. Cartão Virtual & Acúmulo
+                    <i class="fas fa-layer-group"></i> 1. Hub de Regras & Cartões (Modular)
                 </button>
                 <button class="fid-tab-btn" data-tab="tab-promos">
                     <i class="fas fa-tags"></i> 2. Promoções Relâmpago (<?php echo count($promocoes); ?>)
@@ -534,231 +534,111 @@ include 'includes/_head.php';
             </div>
 
             <!-- ════════════════════════════════════════════════════════════ -->
-            <!-- TAB 1: CARTÃO VIRTUAL & MOTOR DE REGRAS DE ACÚMULO -->
+            <!-- ════════════════════════════════════════════════════════════ -->
+            <!-- TAB 1: HUB DE REGRAS MODULARES & CARTÕES FIDELIDADE -->
             <!-- ════════════════════════════════════════════════════════════ -->
             <div class="tab-content-panel active" id="tab-cartao">
-                <div class="fid-grid-2col">
-                    
-                    <!-- LADO ESQUERDO: FORMULÁRIO DE CONFIGURAÇÃO DO MOTOR -->
-                    <div class="widget-card">
+                
+                <!-- TOP BAR DO HUB MODULAR -->
+                <div class="widget-card" style="margin-bottom: 22px; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; padding: 22px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 18px;">
+                        <div>
+                            <h2 style="font-size: 1.25rem; color: #0f172a; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-layer-group" style="color: #0d9488;"></i> Hub de Regras Modulares de Fidelidade & Descontos
+                            </h2>
+                            <p style="color: #64748b; font-size: 0.88rem; margin: 0;">
+                                Crie múltiplos cartões e regras simultâneas: selos, cashback, pontos ou descontos por produto/serviço.
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button type="button" class="btn btn-primary" id="btn-nova-regra-hub" style="display: inline-flex; align-items: center; gap: 8px; border-radius: 10px; padding: 12px 20px; font-weight: 700; background: #0d9488; border-color: #0d9488;">
+                                <i class="fas fa-plus-circle"></i> Criar Nova Regra / Cartão
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PRESETS RÁPIDOS EM 1 CLIQUE -->
+                    <div style="background: #f8fafc; border-radius: 12px; padding: 14px 16px; border: 1px dashed #cbd5e1;">
+                        <strong style="font-size: 0.8rem; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">
+                            <i class="fas fa-magic" style="color: #f59e0b;"></i> Modelos Prontos (Clique para criar ou pré-configurar):
+                        </strong>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;" id="presets-hub-bar">
+                            <button type="button" class="btn-preset-regra" data-preset="selos_classico" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #1e293b;">
+                                <i class="fas fa-paw" style="color: #0d9488;"></i> Cartão 10 Selos (15% OFF)
+                            </button>
+                            <button type="button" class="btn-preset-regra" data-preset="clube_banho" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #1e293b;">
+                                <i class="fas fa-bath" style="color: #3b82f6;"></i> Clube do Banho (Compre 5 Ganhe 1)
+                            </button>
+                            <button type="button" class="btn-preset-regra" data-preset="terca_dobro" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #1e293b;">
+                                <i class="fas fa-calendar-day" style="color: #f59e0b;"></i> Terça Turbo (2x Selos)
+                            </button>
+                            <button type="button" class="btn-preset-regra" data-preset="cashback_5" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #1e293b;">
+                                <i class="fas fa-coins" style="color: #10b981;"></i> Cashback VIP 5%
+                            </button>
+                            <button type="button" class="btn-preset-regra" data-preset="aniversario" style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; color: #1e293b;">
+                                <i class="fas fa-birthday-cake" style="color: #ec4899;"></i> Mês Aniversariante (20% OFF)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GRADE DINÂMICA DE REGRAS CADASTRADAS -->
+                <div id="grid-regras-hub" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 22px; margin-bottom: 30px;">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #64748b;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i> Carregando regras de fidelidade...
+                    </div>
+                </div>
+
+                <!-- SEÇÃO COLAPSÁVEL: CONFIGURAÇÕES GLOBAIS LEGADAS & ESTILO PADRÃO -->
+                <details style="background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; padding: 18px; margin-top: 20px;">
+                    <summary style="font-weight: 700; color: #334155; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-sliders-h" style="color: #64748b;"></i> Configurações Globais & Parâmetros Base do Cartão
+                    </summary>
+                    <div style="margin-top: 18px; border-top: 1px solid #f1f5f9; padding-top: 18px;">
                         <form id="form-fidelidade-config" enctype="multipart/form-data">
                             <input type="hidden" name="acao" value="salvar_config">
                             <input type="hidden" name="instituicao_id" value="<?php echo $id_loja; ?>">
 
-                            <div class="form-section-title">
-                                <i class="fas fa-cogs" style="color: #1abc9c;"></i> 1. Motor de Regras de Acúmulo
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label style="font-weight: 600; margin-bottom: 8px; display: block;">Modelo de Fidelidade Principal</label>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                                    <label style="border: 2px solid #e2e8f0; border-radius: 10px; padding: 12px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; background: #fff;" id="label-tipo-selos">
-                                        <input type="radio" name="tipo_programa" value="selos" <?php echo ($cfg['tipo_programa'] === 'selos') ? 'checked' : ''; ?> style="margin-top: 3px;">
-                                        <div>
-                                            <strong style="display: block; font-size: 0.95rem;">Cartão de Selos (Compras)</strong>
-                                            <small style="color: #64748b;">A cada 10 compras o cliente ganha desconto/brinde.</small>
-                                        </div>
-                                    </label>
-                                    <label style="border: 2px solid #e2e8f0; border-radius: 10px; padding: 12px; cursor: pointer; display: flex; align-items: flex-start; gap: 10px; background: #fff;" id="label-tipo-pontos">
-                                        <input type="radio" name="tipo_programa" value="pontos" <?php echo ($cfg['tipo_programa'] === 'pontos') ? 'checked' : ''; ?> style="margin-top: 3px;">
-                                        <div>
-                                            <strong style="display: block; font-size: 0.95rem;">Pontuação Financeira</strong>
-                                            <small style="color: #64748b;">R$ 1,00 gasto = 1 ponto acumulado.</small>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                            <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                                 <div class="form-group">
-                                    <label style="font-weight: 600;">Meta de Compras p/ Selo Completo</label>
+                                    <label style="font-weight: 600;">Meta Padrão de Compras (Selos Base)</label>
                                     <input type="number" name="compras_para_recompensa" id="input-meta-selos" value="<?php echo htmlspecialchars($cfg['compras_para_recompensa']); ?>" min="2" max="30" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                                    <small style="color: #777;">Padrão recomendado: 10 compras.</small>
                                 </div>
                                 <div class="form-group">
-                                    <label style="font-weight: 600;">Desconto Desbloqueado (%)</label>
+                                    <label style="font-weight: 600;">Desconto Padrão Desbloqueado (%)</label>
                                     <input type="number" step="0.5" name="recompensa_valor" id="input-desc-valor" value="<?php echo htmlspecialchars($cfg['recompensa_valor']); ?>" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                                    <small style="color: #777;">Ex: 15% de desconto na 10ª compra.</small>
                                 </div>
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 20px;">
-                                <label style="font-weight: 600;">Teto Máximo de Desconto (Trava de Segurança)</label>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-weight: bold; color: #64748b;">R$</span>
-                                    <input type="number" step="1" name="limite_desconto_recompensa" value="<?php echo htmlspecialchars($cfg['limite_desconto_recompensa']); ?>" class="form-control" style="width: 140px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                                    <small style="color: #777;">Evita prejuízo no fluxo de caixa se o cliente fizer uma compra gigante.</small>
-                                </div>
-                            </div>
-
-                            <!-- ACELERADORES DE PONTOS -->
-                            <div class="form-section-title" style="margin-top: 30px;">
-                                <i class="fas fa-bolt" style="color: #f39c12;"></i> Aceleradores & Bônus Temporários
-                            </div>
-
-                            <div class="toggle-row">
-                                <div>
-                                    <strong>Terça-feira em Dobro (2x Selos/Pontos)</strong>
-                                    <div style="font-size: 0.8rem; color: #64748b;">Incentiva movimento em dias de menor fluxo na loja.</div>
-                                </div>
-                                <input type="checkbox" name="acelerador_terca" value="1" <?php echo !empty($aceleradores['terca_dobro']) ? 'checked' : ''; ?> style="width: 20px; height: 20px; cursor: pointer;">
-                            </div>
-
-                            <div class="toggle-row">
-                                <div>
-                                    <strong>Bônus de Aniversário (2x Pontos no mês)</strong>
-                                    <div style="font-size: 0.8rem; color: #64748b;">Dispara pontuação dobrada no mês do tutor ou do pet.</div>
-                                </div>
-                                <input type="checkbox" name="acelerador_aniver" value="1" <?php echo !empty($aceleradores['aniversario']) ? 'checked' : ''; ?> style="width: 20px; height: 20px; cursor: pointer;">
-                            </div>
-
-                            <div class="toggle-row">
-                                <div>
-                                    <strong>Serviços de Alta Margem (Banho, Tosa e Clínica)</strong>
-                                    <div style="font-size: 0.8rem; color: #64748b;">Atribui +50% de bônus em serviços com maior lucro.</div>
-                                </div>
-                                <input type="checkbox" name="acelerador_servicos" value="1" <?php echo !empty($aceleradores['servicos_bonus']) ? 'checked' : ''; ?> style="width: 20px; height: 20px; cursor: pointer;">
-                            </div>
-
-                            <!-- VALIDADE E NOTIFICAÇÕES -->
-                            <div class="form-section-title" style="margin-top: 30px;">
-                                <i class="fas fa-hourglass-half" style="color: #e74c3c;"></i> 4. Validade dos Pontos & Notificações
                             </div>
 
                             <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                                 <div class="form-group">
-                                    <label style="font-weight: 600;">Expiração dos Pontos/Selos</label>
+                                    <label style="font-weight: 600;">Validade dos Selos/Pontos</label>
                                     <select name="validade_meses" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                                        <option value="3" <?php echo ($cfg['validade_meses'] == 3) ? 'selected' : ''; ?>>Expiram em 3 Meses</option>
-                                        <option value="6" <?php echo ($cfg['validade_meses'] == 6) ? 'selected' : ''; ?>>Expiram em 6 Meses (Padrão)</option>
-                                        <option value="12" <?php echo ($cfg['validade_meses'] == 12) ? 'selected' : ''; ?>>Expiram em 12 Meses (1 Ano)</option>
+                                        <option value="3" <?php echo ($cfg['validade_meses'] == 3) ? 'selected' : ''; ?>>3 Meses</option>
+                                        <option value="6" <?php echo ($cfg['validade_meses'] == 6) ? 'selected' : ''; ?>>6 Meses (Padrão)</option>
+                                        <option value="12" <?php echo ($cfg['validade_meses'] == 12) ? 'selected' : ''; ?>>12 Meses (1 Ano)</option>
                                         <option value="0" <?php echo ($cfg['validade_meses'] == 0) ? 'selected' : ''; ?>>Nunca Expiram</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label style="font-weight: 600;">Aviso Prévio de Expiração</label>
-                                    <select name="dias_aviso_expiracao" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                                        <option value="7" <?php echo ($cfg['dias_aviso_expiracao'] == 7) ? 'selected' : ''; ?>>Avisar 7 dias antes</option>
-                                        <option value="15" <?php echo ($cfg['dias_aviso_expiracao'] == 15) ? 'selected' : ''; ?>>Avisar 15 dias antes</option>
-                                        <option value="30" <?php echo ($cfg['dias_aviso_expiracao'] == 30) ? 'selected' : ''; ?>>Avisar 30 dias antes</option>
-                                    </select>
+                                    <label style="font-weight: 600;">Teto Máximo de Desconto (R$)</label>
+                                    <input type="number" step="1" name="limite_desconto_recompensa" value="<?php echo htmlspecialchars($cfg['limite_desconto_recompensa']); ?>" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
                                 </div>
                             </div>
 
-                            <div class="toggle-row">
-                                <div>
-                                    <strong><i class="fab fa-whatsapp" style="color: #25D366;"></i> Alerta WhatsApp de Expiração</strong>
-                                    <div style="font-size: 0.8rem; color: #64748b;">Notifica o cliente sobre pontos/selos prestes a vencer para gerar urgência de compra.</div>
-                                </div>
-                                <input type="checkbox" name="notificar_whatsapp" value="1" <?php echo !empty($cfg['notificar_whatsapp']) ? 'checked' : ''; ?> style="width: 20px; height: 20px; cursor: pointer;">
+                            <div style="display: flex; justify-content: flex-end; margin-top: 15px;">
+                                <button type="submit" class="btn btn-primary" id="btn-salvar-config" style="padding: 10px 20px; font-weight: 700; border-radius: 8px;">
+                                    <i class="fas fa-save"></i> Salvar Parâmetros Base
+                                </button>
                             </div>
-
-                            <!-- PERSONALIZAÇÃO VISUAL DO CARTÃO -->
-                            <div class="form-section-title" style="margin-top: 30px;">
-                                <i class="fas fa-palette" style="color: #9b59b6;"></i> 3. Customização Visual do Cartão Virtual
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 15px;">
-                                <label style="font-weight: 600;">Nome do Cartão / Programa</label>
-                                <input type="text" name="texto_cartao" id="input-card-title" value="<?php echo htmlspecialchars($cfg['texto_cartao']); ?>" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                            </div>
-
-                            <div class="form-group-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                <div class="form-group">
-                                    <label style="font-weight: 600;">Cor Primária (Hexadecimal)</label>
-                                    <div class="color-picker-box">
-                                        <input type="color" name="cor_cartao_hex" id="picker-cor-primaria" value="<?php echo htmlspecialchars($cfg['cor_cartao_hex']); ?>">
-                                        <input type="text" id="text-cor-primaria" value="<?php echo htmlspecialchars($cfg['cor_cartao_hex']); ?>" style="width: 90px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace;">
-                                    </div>
-                                </div>
-                                <div class="form-group">
-                                    <label style="font-weight: 600;">Cor Secundária (Degradê)</label>
-                                    <div class="color-picker-box">
-                                        <input type="color" name="cor_cartao_secundaria" id="picker-cor-secundaria" value="<?php echo htmlspecialchars($cfg['cor_cartao_secundaria']); ?>">
-                                        <input type="text" id="text-cor-secundaria" value="<?php echo htmlspecialchars($cfg['cor_cartao_secundaria']); ?>" style="width: 90px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-family: monospace;">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-group" style="margin-bottom: 25px;">
-                                <label style="font-weight: 600;">Upload da Logo da Loja para o Cartão</label>
-                                <input type="file" name="logo_cartao" id="input-card-logo" accept="image/*" class="form-control" style="width: 100%; padding: 8px; border: 1px dashed #cbd5e1; border-radius: 8px; background: #fdfdfd;">
-                            </div>
-
-                            <button type="submit" class="btn btn-primary" id="btn-salvar-config" style="width: 100%; padding: 14px; font-size: 1.05rem; font-weight: 700; border-radius: 8px;">
-                                <i class="fas fa-save"></i> Salvar Parâmetros de Fidelização
-                            </button>
                         </form>
                     </div>
+                </details>
 
-                    <!-- LADO DIREITO: PREVIEW EM TEMPO REAL DO CARTÃO VIP -->
-                    <div class="vip-card-preview-box">
-                        <div class="widget-card" style="border: 2px dashed #cbd5e1; background: #f8fafc;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <strong style="color: #334155; font-size: 0.95rem;">
-                                    <i class="fas fa-eye" style="color: #3498db;"></i> Pré-visualização ao Vivo do Cartão
-                                </strong>
-                                <span style="font-size: 0.75rem; background: #e0f2fe; color: #0284c7; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
-                                    Atualiza em tempo real
-                                </span>
-                            </div>
-
-                            <!-- O CARTÃO DINÂMICO -->
-                            <div class="vip-card-display" id="card-preview-element" style="background: linear-gradient(135deg, <?php echo $cfg['cor_cartao_secundaria']; ?>, <?php echo $cfg['cor_cartao_hex']; ?>);">
-                                <div class="vip-header">
-                                    <div class="vip-brand">
-                                        <div class="vip-logo-box" id="preview-logo-box">
-                                            <?php if (!empty($cfg['logo_cartao'])): ?>
-                                                <img src="<?php echo htmlspecialchars($cfg['logo_cartao']); ?>" alt="Logo" id="preview-logo-img">
-                                            <?php else: ?>
-                                                <i class="fas fa-paw" id="preview-logo-icon"></i>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="vip-title-text">
-                                            <h4 id="preview-card-title"><?php echo htmlspecialchars($cfg['texto_cartao']); ?></h4>
-                                            <small id="preview-card-store">Clube VIP</small>
-                                        </div>
-                                    </div>
-                                    <div class="vip-tier-badge">
-                                        <i class="fas fa-crown" style="color: #f1c40f;"></i>
-                                        <span>Nível Prata</span>
-                                    </div>
-                                </div>
-
-                                <div class="vip-stamps-tray">
-                                    <div class="vip-stamps-header">
-                                        <span>Progresso de Selos</span>
-                                        <span><strong id="preview-stamps-count">6</strong> de <span id="preview-stamps-total"><?php echo $cfg['compras_para_recompensa']; ?></span></span>
-                                    </div>
-                                    <div class="vip-stamps-slots" id="preview-slots-grid">
-                                        <!-- Gerado dinamicamente via JS -->
-                                    </div>
-                                </div>
-
-                                <div class="vip-footer">
-                                    <div class="vip-client-info">
-                                        <small>Exemplo do Cliente</small>
-                                        <strong>Mariana Silva & Thor 🐕</strong>
-                                    </div>
-                                    <div class="vip-qr-holder">
-                                        <div id="preview-qr"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style="margin-top: 15px; text-align: center;">
-                                <small style="color: #64748b;">
-                                    <i class="fas fa-info-circle"></i> O cliente pode abrir este cartão no celular via link direto ou WhatsApp para leitura rápida no balcão.
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
             </div>
 
             <!-- ════════════════════════════════════════════════════════════ -->
-            <!-- TAB 2: PROMOÇÕES COM TEMPORIZADOR, FOTO E DESCONTO -->
+<!-- TAB 2: PROMOÇÕES COM TEMPORIZADOR, FOTO E DESCONTO -->
             <!-- ════════════════════════════════════════════════════════════ -->
             <div class="tab-content-panel" id="tab-promos">
                 
@@ -1136,6 +1016,242 @@ include 'includes/_head.php';
 <!-- ════════════════════════════════════════════════════════════ -->
 <!-- MODAL: CADASTRAR / EDITAR PROMOÇÃO -->
 <!-- ════════════════════════════════════════════════════════════ -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<!-- MODAL: CONSTRUTOR MODULAR DE REGRAS DE FIDELIDADE & DESCONTOS -->
+<!-- ════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modal-construtor-regra" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.75); z-index: 9999; backdrop-filter: blur(4px);">
+    <div class="modal-content" style="background: #ffffff; border-radius: 20px; width: 100%; max-width: 880px; max-height: 90vh; overflow-y: auto; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); position: relative;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 44px; height: 44px; border-radius: 12px; background: #0d9488; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                    <i class="fas fa-magic"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; color: #0f172a; font-size: 1.25rem; font-weight: 800;" id="modal-regra-titulo">Nova Regra de Fidelidade & Desconto</h3>
+                    <small style="color: #64748b;">Configure a mecânica, condições, recompensas e visual do cartão.</small>
+                </div>
+            </div>
+            <button type="button" class="close-modal-btn" onclick="fecharModalConstrutor()" style="background: none; border: none; font-size: 1.6rem; cursor: pointer; color: #94a3b8;">&times;</button>
+        </div>
+
+        <form id="form-salvar-regra-modular">
+            <input type="hidden" name="id" id="regra-id-input" value="0">
+            <input type="hidden" name="instituicao_id" value="<?php echo $id_loja; ?>">
+
+            <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; align-items: start;">
+                
+                <!-- COLUNA ESQUERDA: PARÂMETROS DA REGRA -->
+                <div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px; font-size: 0.9rem;">
+                            1. Nome da Regra / Campanha *
+                        </label>
+                        <input type="text" name="nome_regra" id="regra-nome-input" required placeholder="Ex: Clube do Banho VIP, Terça Turbo..." class="form-control" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600; font-size: 0.95rem;">
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px; font-size: 0.9rem;">
+                            2. Mecânica do Programa *
+                        </label>
+                        <select name="tipo_mecanica" id="regra-mecanica-select" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 600;">
+                            <option value="cartao_selos">🎫 Cartão de Selos (Gamificação por Compras)</option>
+                            <option value="pontos">⭐ Pontuação Financeira (R$ 1 gasto = Pontos)</option>
+                            <option value="cashback">💰 Cashback (% do valor volta como crédito)</option>
+                            <option value="compre_ganhe">🎁 Compre X e Ganhe Y (Ex: 5 banhos ganha 1)</option>
+                            <option value="desconto_direto">🏷️ Desconto Direto / Especial</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px; font-size: 0.9rem;">
+                            3. Onde se Aplica (Itens Elegíveis)
+                        </label>
+                        <select name="categoria_alvo" id="regra-alvo-select" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                            <option value="todos">🌐 Todos os Produtos e Serviços da Loja</option>
+                            <option value="servicos">✂️ Apenas Serviços (Banho, Tosa, Clínica...)</option>
+                            <option value="produtos">📦 Apenas Produtos (Rações, Petiscos, Farmácia...)</option>
+                            <option value="item_especifico">🎯 Item Específico do Catálogo</option>
+                        </select>
+                    </div>
+
+                    <div id="box-item-especifico" style="margin-bottom: 16px; display: none;">
+                        <label style="font-weight: 600; color: #475569; display: block; margin-bottom: 5px; font-size: 0.85rem;">Selecione o Item Específico:</label>
+                        <select name="item_alvo_id" id="regra-item-alvo-select" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                            <optgroup label="Serviços">
+                                <?php foreach ($servicos_loja as $sv): ?>
+                                    <option value="<?php echo $sv['id']; ?>"><?php echo htmlspecialchars($sv['nome_servico']); ?> (R$ <?php echo number_format($sv['preco_padrao'], 2, ',', '.'); ?>)</option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                            <optgroup label="Produtos">
+                                <?php foreach ($produtos_loja as $pr): ?>
+                                    <option value="<?php echo $pr['id']; ?>"><?php echo htmlspecialchars($pr['nome_produto']); ?> (R$ <?php echo number_format($pr['preco_venda'], 2, ',', '.'); ?>)</option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px; font-size: 0.9rem;">
+                            4. Condição / Meta para Desbloquear
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px;">
+                            <select name="condicao_tipo" id="regra-condicao-tipo" class="form-control" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                                <option value="quantidade_compras">Meta de Compras / Selos</option>
+                                <option value="valor_minimo">Valor Mínimo da Compra</option>
+                                <option value="dia_semana">Dia Específico da Semana</option>
+                                <option value="aniversario">Mês de Aniversário</option>
+                                <option value="sem_condicao">Sem Condição Mínima</option>
+                            </select>
+                            <input type="number" step="0.5" name="condicao_valor" id="regra-condicao-valor" value="10" placeholder="Meta / Valor" class="form-control" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700;">
+                        </div>
+                    </div>
+
+                    <div id="box-dias-semana" style="margin-bottom: 16px; display: none; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <label style="font-size: 0.8rem; font-weight: 700; color: #475569; display: block; margin-bottom: 6px;">Dias em que a promoção é válida:</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <label><input type="checkbox" name="dias[]" value="seg"> Seg</label>
+                            <label><input type="checkbox" name="dias[]" value="ter"> Ter</label>
+                            <label><input type="checkbox" name="dias[]" value="qua"> Qua</label>
+                            <label><input type="checkbox" name="dias[]" value="qui"> Qui</label>
+                            <label><input type="checkbox" name="dias[]" value="sex"> Sex</label>
+                            <label><input type="checkbox" name="dias[]" value="sab"> Sáb</label>
+                            <label><input type="checkbox" name="dias[]" value="dom"> Dom</label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 700; color: #1e293b; display: block; margin-bottom: 6px; font-size: 0.9rem;">
+                            5. Recompensa / Benefício ao Cliente
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 8px;">
+                            <select name="recompensa_tipo" id="regra-recompensa-tipo" class="form-control" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                                <option value="desconto_percentual">Desconto Percentual (%)</option>
+                                <option value="desconto_fixo">Desconto em Reais (R$)</option>
+                                <option value="item_gratis">Item / Serviço Grátis</option>
+                                <option value="cashback">Cashback (%)</option>
+                            </select>
+                            <input type="number" step="0.5" name="recompensa_valor" id="regra-recompensa-valor" value="15" placeholder="Valor" class="form-control" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; color: #059669;">
+                        </div>
+                        <div id="box-recompensa-item" style="display: none; margin-top: 8px;">
+                            <select name="recompensa_item_id" id="regra-recompensa-item-select" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                                <optgroup label="Serviços Gratuitos">
+                                    <?php foreach ($servicos_loja as $sv): ?>
+                                        <option value="<?php echo $sv['id']; ?>"><?php echo htmlspecialchars($sv['nome_servico']); ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                                <optgroup label="Produtos / Brindes">
+                                    <?php foreach ($produtos_loja as $pr): ?>
+                                        <option value="<?php echo $pr['id']; ?>"><?php echo htmlspecialchars($pr['nome_produto']); ?></option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="font-weight: 600; color: #475569; display: block; margin-bottom: 5px; font-size: 0.85rem;">
+                            Trava de Segurança / Teto Máximo de Desconto (R$)
+                        </label>
+                        <input type="number" step="1" name="limite_desconto_recompensa" id="regra-limite-desconto" value="50" placeholder="Sem teto" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                    </div>
+                </div>
+
+                <!-- COLUNA DIREITA: VISUAL DO CARTÃO & PREVIEW EM TEMPO REAL -->
+                <div style="background: #f8fafc; border-radius: 14px; padding: 18px; border: 1px solid #e2e8f0;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #0f172a; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-palette" style="color: #9333ea;"></i> 6. Identidade Visual do Cartão
+                    </h4>
+
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Texto no Topo do Cartão:</label>
+                        <input type="text" name="texto_cartao" id="regra-texto-cartao" value="Cartão Fidelidade Pet VIP" class="form-control" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cor Primária:</label>
+                            <input type="color" name="cor_hex" id="regra-cor-primaria" value="#0d9488" style="width: 100%; height: 38px; border: none; border-radius: 6px; cursor: pointer;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.82rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Cor Secundária:</label>
+                            <input type="color" name="cor_secundaria" id="regra-cor-secundaria" value="#115e59" style="width: 100%; height: 38px; border: none; border-radius: 6px; cursor: pointer;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label style="font-size: 0.82rem; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">Ícone Temático:</label>
+                        <select name="icone" id="regra-icone-select" class="form-control" style="width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                            <option value="fas fa-paw">🐾 Patinha Pet</option>
+                            <option value="fas fa-bath">🛁 Banho & Higiene</option>
+                            <option value="fas fa-cut">✂️ Tosa & Estilo</option>
+                            <option value="fas fa-star">⭐ Estrela VIP</option>
+                            <option value="fas fa-crown">👑 Coroa Ouro</option>
+                            <option value="fas fa-gift">🎁 Caixa de Presente</option>
+                            <option value="fas fa-coins">💰 Moeda / Cashback</option>
+                            <option value="fas fa-heart">❤️ Coração Tutor</option>
+                        </select>
+                    </div>
+
+                    <!-- PREVIEW AO VIVO DO CARTÃO DENTRO DO MODAL -->
+                    <div style="margin-top: 15px;">
+                        <small style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 0.72rem; display: block; margin-bottom: 6px;">
+                            Pré-visualização do Cartão do Cliente:
+                        </small>
+                        
+                        <div id="modal-card-live-preview" style="background: linear-gradient(135deg, #115e59, #0d9488); border-radius: 18px; padding: 18px 16px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; overflow: hidden; transition: all 0.3s;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div id="modal-preview-icon" style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1rem;">
+                                        <i class="fas fa-paw"></i>
+                                    </div>
+                                    <div>
+                                        <div id="modal-preview-title" style="font-weight: 700; font-size: 0.92rem; line-height: 1.2;">Cartão Fidelidade Pet VIP</div>
+                                        <small style="opacity: 0.85; font-size: 0.7rem; text-transform: uppercase;">Cliente VIP</small>
+                                    </div>
+                                </div>
+                                <span style="background: rgba(255,255,255,0.25); font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 12px;">Nível VIP</span>
+                            </div>
+
+                            <div style="background: rgba(0,0,0,0.18); border-radius: 12px; padding: 10px; margin-bottom: 10px; font-size: 0.78rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-weight: 600;">
+                                    <span>Progresso do Cartão:</span>
+                                    <span id="modal-preview-progress-text">3 de 10 selos</span>
+                                </div>
+                                <div id="modal-preview-slots" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px;">
+                                    <!-- Slots preenchidos via JS -->
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.75rem;">
+                                <div>
+                                    <span style="opacity: 0.8; display: block; font-size: 0.65rem;">Benefício:</span>
+                                    <strong id="modal-preview-benefit" style="font-size: 0.85rem; color: #fef08a;">15% de Desconto</strong>
+                                </div>
+                                <div style="background: white; padding: 4px; border-radius: 6px; color: #0f172a; font-size: 0.7rem; font-weight: bold;">
+                                    QR CODE
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 18px;">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalConstrutor()" style="padding: 10px 18px; border-radius: 8px; font-weight: 600;">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary" id="btn-submit-regra" style="padding: 10px 24px; border-radius: 8px; font-weight: 700; background: #0d9488; border-color: #0d9488; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-save"></i> Salvar Regra de Fidelidade
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
 <div class="modal-overlay" id="promo-modal" style="display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999;">
     <div class="modal-content" style="background: white; border-radius: 16px; width: 100%; max-width: 580px; padding: 26px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;">
         
@@ -1233,7 +1349,7 @@ document.querySelectorAll('.fid-tab-btn[data-tab]').forEach(btn => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// 2. LIVE INTERACTIVE CARD PREVIEW
+// 2. LIVE INTERACTIVE CARD PREVIEW (SE PRESENTE NA TELA)
 // ══════════════════════════════════════════════════════════════════
 const cardPreview = document.getElementById('card-preview-element');
 const pickPrimaria = document.getElementById('picker-cor-primaria');
@@ -1246,115 +1362,143 @@ const inputMetaSelos = document.getElementById('input-meta-selos');
 const previewStampsTotal = document.getElementById('preview-stamps-total');
 const previewSlotsGrid = document.getElementById('preview-slots-grid');
 
-function updateCardGradient() {
-    const c1 = pickPrimaria.value;
-    const c2 = pickSecundaria.value;
-    cardPreview.style.background = `linear-gradient(135deg, ${c2}, ${c1})`;
-}
+if (pickPrimaria && cardPreview) {
+    function updateCardGradient() {
+        const c1 = pickPrimaria.value;
+        const c2 = pickSecundaria ? pickSecundaria.value : '#2c3e50';
+        cardPreview.style.background = `linear-gradient(135deg, ${c2}, ${c1})`;
+    }
 
-pickPrimaria.addEventListener('input', function() {
-    textPrimaria.value = this.value;
-    updateCardGradient();
-});
-textPrimaria.addEventListener('input', function() {
-    pickPrimaria.value = this.value;
-    updateCardGradient();
-});
+    pickPrimaria.addEventListener('input', function() {
+        if (textPrimaria) textPrimaria.value = this.value;
+        updateCardGradient();
+    });
+    if (textPrimaria) {
+        textPrimaria.addEventListener('input', function() {
+            pickPrimaria.value = this.value;
+            updateCardGradient();
+        });
+    }
 
-pickSecundaria.addEventListener('input', function() {
-    textSecundaria.value = this.value;
-    updateCardGradient();
-});
-textSecundaria.addEventListener('input', function() {
-    pickSecundaria.value = this.value;
-    updateCardGradient();
-});
-
-inputCardTitle.addEventListener('input', function() {
-    previewCardTitle.innerText = this.value || 'Cartão Fidelidade Pet VIP';
-});
-
-function renderStampsPreview() {
-    const total = parseInt(inputMetaSelos.value) || 10;
-    previewStampsTotal.innerText = total;
-    previewSlotsGrid.innerHTML = '';
-    
-    // Simula 6 selos preenchidos no preview
-    const preenchidos = Math.min(6, total);
-    document.getElementById('preview-stamps-count').innerText = preenchidos;
-
-    for (let i = 1; i <= total; i++) {
-        const slot = document.createElement('div');
-        const ehUltimo = (i === total);
-        const cheio = (i <= preenchidos);
-
-        slot.className = `vip-slot ${cheio ? 'filled' : ''} ${ehUltimo ? 'reward-slot' : ''}`;
-        
-        if (cheio) {
-            slot.innerHTML = ehUltimo ? '<i class="fas fa-gift"></i>' : '<i class="fas fa-paw"></i>';
-        } else {
-            slot.innerHTML = ehUltimo ? '<i class="fas fa-gift" style="opacity:0.4;"></i>' : `<span>${i}</span>`;
-        }
-        previewSlotsGrid.appendChild(slot);
+    if (pickSecundaria) {
+        pickSecundaria.addEventListener('input', function() {
+            if (textSecundaria) textSecundaria.value = this.value;
+            updateCardGradient();
+        });
+    }
+    if (textSecundaria && pickSecundaria) {
+        textSecundaria.addEventListener('input', function() {
+            pickSecundaria.value = this.value;
+            updateCardGradient();
+        });
     }
 }
-inputMetaSelos.addEventListener('input', renderStampsPreview);
-renderStampsPreview();
+
+if (inputCardTitle && previewCardTitle) {
+    inputCardTitle.addEventListener('input', function() {
+        previewCardTitle.innerText = this.value || 'Cartão Fidelidade Pet VIP';
+    });
+}
+
+if (inputMetaSelos && previewSlotsGrid && previewStampsTotal) {
+    function renderStampsPreview() {
+        const total = parseInt(inputMetaSelos.value) || 10;
+        previewStampsTotal.innerText = total;
+        previewSlotsGrid.innerHTML = '';
+        
+        const preenchidos = Math.min(6, total);
+        const stampsCountEl = document.getElementById('preview-stamps-count');
+        if (stampsCountEl) stampsCountEl.innerText = preenchidos;
+
+        for (let i = 1; i <= total; i++) {
+            const slot = document.createElement('div');
+            const ehUltimo = (i === total);
+            const cheio = (i <= preenchidos);
+
+            slot.className = `vip-slot ${cheio ? 'filled' : ''} ${ehUltimo ? 'reward-slot' : ''}`;
+            
+            if (cheio) {
+                slot.innerHTML = ehUltimo ? '<i class="fas fa-gift"></i>' : '<i class="fas fa-paw"></i>';
+            } else {
+                slot.innerHTML = ehUltimo ? '<i class="fas fa-gift" style="opacity:0.4;"></i>' : `<span>${i}</span>`;
+            }
+            previewSlotsGrid.appendChild(slot);
+        }
+    }
+    inputMetaSelos.addEventListener('input', renderStampsPreview);
+    renderStampsPreview();
+}
 
 // Upload de logo no preview
-document.getElementById('input-card-logo').addEventListener('change', function(e) {
-    if (this.files && this.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(ev) {
-            const box = document.getElementById('preview-logo-box');
-            box.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
-        };
-        reader.readAsDataURL(this.files[0]);
-    }
-});
+const inputCardLogo = document.getElementById('input-card-logo');
+if (inputCardLogo) {
+    inputCardLogo.addEventListener('change', function(e) {
+        if (this.files && this.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const box = document.getElementById('preview-logo-box');
+                if (box) box.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+            };
+            reader.readAsDataURL(this.files[0]);
+        }
+    });
+}
 
 // Renderiza QR Code no preview
-new QRCode(document.getElementById("preview-qr"), {
-    text: "PETCRM:VIP:PREVIEW:DEMO",
-    width: 50,
-    height: 50,
-    colorDark : "#0f172a",
-    colorLight : "#ffffff",
-    correctLevel : QRCode.CorrectLevel.M
-});
+const previewQrEl = document.getElementById("preview-qr");
+if (previewQrEl && typeof QRCode !== 'undefined') {
+    new QRCode(previewQrEl, {
+        text: "PETCRM:VIP:PREVIEW:DEMO",
+        width: 50,
+        height: 50,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.M
+    });
+}
 
 // ══════════════════════════════════════════════════════════════════
 // 3. SALVAR CONFIGURAÇÃO DO PROGRAMA DE FIDELIDADE
 // ══════════════════════════════════════════════════════════════════
-document.getElementById('form-fidelidade-config').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-salvar-config');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
-    btn.disabled = true;
-
-    const formData = new FormData(this);
-
-    fetch('api_fidelidade.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(r => r.json())
-    .then(res => {
-        alert(res.message);
-        btn.innerHTML = orig;
-        btn.disabled = false;
-        if(res.success && res.logo_url) {
-            document.getElementById('preview-logo-box').innerHTML = `<img src="${res.logo_url}" style="width:100%;height:100%;object-fit:cover;">`;
+const formFidConfig = document.getElementById('form-fidelidade-config');
+if (formFidConfig) {
+    formFidConfig.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-salvar-config');
+        const orig = btn ? btn.innerHTML : 'Salvar';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            btn.disabled = true;
         }
-    })
-    .catch(err => {
-        console.error(err);
-        alert('Erro ao salvar configurações.');
-        btn.innerHTML = orig;
-        btn.disabled = false;
+
+        const formData = new FormData(this);
+
+        fetch('api_fidelidade.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            alert(res.message);
+            if (btn) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+            if(res.success && res.logo_url) {
+                const logoBox = document.getElementById('preview-logo-box');
+                if (logoBox) logoBox.innerHTML = `<img src="${res.logo_url}" style="width:100%;height:100%;object-fit:cover;">`;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Erro ao salvar configurações.');
+            if (btn) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        });
     });
-});
+}
 
 // ══════════════════════════════════════════════════════════════════
 // 4. CONTADOR REGRESSIVO EM TEMPO REAL NAS PROMOÇÕES (COUNTDOWN)
@@ -1392,13 +1536,17 @@ atualizarTimers();
 // ══════════════════════════════════════════════════════════════════
 const modalPromo = document.getElementById('promo-modal');
 function abrirModalPromo() {
-    modalPromo.style.display = 'flex';
+    if (modalPromo) modalPromo.style.display = 'flex';
 }
 function fecharModalPromo() {
-    modalPromo.style.display = 'none';
+    if (modalPromo) modalPromo.style.display = 'none';
 }
-document.getElementById('btn-abrir-nova-promo').onclick = abrirModalPromo;
-document.getElementById('btn-criar-promo-tab').onclick = abrirModalPromo;
+
+const btnAbrirNovaPromo = document.getElementById('btn-abrir-nova-promo');
+if (btnAbrirNovaPromo) btnAbrirNovaPromo.onclick = abrirModalPromo;
+
+const btnCriarPromoTab = document.getElementById('btn-criar-promo-tab');
+if (btnCriarPromoTab) btnCriarPromoTab.onclick = abrirModalPromo;
 
 // Cálculo dinâmico do desconto ao escolher produto e %
 const prodSelect = document.getElementById('promo-produto-select');
@@ -1406,7 +1554,8 @@ const descInput = document.getElementById('promo-desconto-input');
 const precoCalc = document.getElementById('promo-preco-calculado');
 
 function recalcularPrecoPromo() {
-    const opt = prodSelect.options[prodSelect.selectedIndex];
+    if (!prodSelect || !descInput || !precoCalc) return;
+    const opt = (prodSelect.selectedIndex >= 0) ? prodSelect.options[prodSelect.selectedIndex] : null;
     const preco = parseFloat(opt ? opt.getAttribute('data-preco') : 0) || 0;
     const desc = parseFloat(descInput.value) || 0;
 
@@ -1417,39 +1566,46 @@ function recalcularPrecoPromo() {
         precoCalc.value = desc + '% de Desconto';
     }
 }
-prodSelect.addEventListener('change', recalcularPrecoPromo);
-descInput.addEventListener('input', recalcularPrecoPromo);
+if (prodSelect) prodSelect.addEventListener('change', recalcularPrecoPromo);
+if (descInput) descInput.addEventListener('input', recalcularPrecoPromo);
 
 // Submissão da promoção com foto
-document.getElementById('form-salvar-promo').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-submit-promo');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
-    btn.disabled = true;
-
-    const formData = new FormData(this);
-
-    fetch('api_fidelidade.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(r => r.json())
-    .then(res => {
-        alert(res.message);
-        if(res.success) {
-            location.reload();
-        } else {
-            btn.innerHTML = orig;
-            btn.disabled = false;
+const formSalvarPromo = document.getElementById('form-salvar-promo');
+if (formSalvarPromo) {
+    formSalvarPromo.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btn-submit-promo');
+        const orig = btn ? btn.innerHTML : 'Salvar';
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            btn.disabled = true;
         }
-    })
-    .catch(err => {
-        alert('Erro ao salvar promoção.');
-        btn.innerHTML = orig;
-        btn.disabled = false;
+
+        const formData = new FormData(this);
+
+        fetch('api_fidelidade.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            alert(res.message);
+            if(res.success) {
+                location.reload();
+            } else if (btn) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            alert('Erro ao salvar promoção.');
+            if (btn) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        });
     });
-});
+}
 
 // Excluir promoção
 document.querySelectorAll('.btn-delete-promo').forEach(btn => {
@@ -1478,109 +1634,495 @@ const divResultadosBalcao = document.getElementById('balcao-resultados');
 const cardCliBalcao = document.getElementById('balcao-cliente-card');
 let clienteSelecionadoBalcao = null;
 
-inputBuscaBalcao.addEventListener('input', function() {
-    const termo = this.value.trim();
-    if (termo.length < 2) {
-        divResultadosBalcao.style.display = 'none';
-        return;
-    }
-
-    fetch(`api_fidelidade.php?acao=buscar_cliente_fidelidade&termo=${encodeURIComponent(termo)}&instituicao_id=<?php echo $id_loja; ?>`)
-    .then(r => r.json())
-    .then(res => {
-        if (res.success && res.clientes.length > 0) {
-            divResultadosBalcao.innerHTML = '';
-            res.clientes.forEach(c => {
-                const item = document.createElement('div');
-                item.style.padding = '10px 14px';
-                item.style.borderBottom = '1px solid #334155';
-                item.style.cursor = 'pointer';
-                item.innerHTML = `<strong>${c.nome_completo}</strong> <small style="color:#94a3b8;">(${c.telefone || 'sem fone'}) - Selos: ${c.selos}</small>`;
-                item.onclick = () => selecionarClienteBalcao(c);
-                divResultadosBalcao.appendChild(item);
-            });
-            divResultadosBalcao.style.display = 'block';
-        } else {
-            divResultadosBalcao.innerHTML = '<div style="padding:10px;color:#94a3b8;">Nenhum cliente encontrado.</div>';
-            divResultadosBalcao.style.display = 'block';
+if (inputBuscaBalcao && divResultadosBalcao) {
+    inputBuscaBalcao.addEventListener('input', function() {
+        const termo = this.value.trim();
+        if (termo.length < 2) {
+            divResultadosBalcao.style.display = 'none';
+            return;
         }
+
+        fetch(`api_fidelidade.php?acao=buscar_cliente_fidelidade&termo=${encodeURIComponent(termo)}&instituicao_id=<?php echo $id_loja; ?>`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.clientes.length > 0) {
+                divResultadosBalcao.innerHTML = '';
+                res.clientes.forEach(c => {
+                    const item = document.createElement('div');
+                    item.style.padding = '10px 14px';
+                    item.style.borderBottom = '1px solid #334155';
+                    item.style.cursor = 'pointer';
+                    item.innerHTML = `<strong>${c.nome_completo}</strong> <small style="color:#94a3b8;">(${c.telefone || 'sem fone'}) - Selos: ${c.selos}</small>`;
+                    item.onclick = () => selecionarClienteBalcao(c);
+                    divResultadosBalcao.appendChild(item);
+                });
+                divResultadosBalcao.style.display = 'block';
+            } else {
+                divResultadosBalcao.innerHTML = '<div style="padding:10px;color:#94a3b8;">Nenhum cliente encontrado.</div>';
+                divResultadosBalcao.style.display = 'block';
+            }
+        });
     });
-});
+}
 
 function selecionarClienteBalcao(c) {
     clienteSelecionadoBalcao = c;
-    divResultadosBalcao.style.display = 'none';
-    inputBuscaBalcao.value = c.nome_completo;
+    if (divResultadosBalcao) divResultadosBalcao.style.display = 'none';
+    if (inputBuscaBalcao) inputBuscaBalcao.value = c.nome_completo;
 
-    document.getElementById('balcao-cli-nome').innerText = c.nome_completo;
-    document.getElementById('balcao-cli-cpf').innerText = 'CPF: ' + (c.cpf || 'Não informado');
-    document.getElementById('balcao-cli-tier').innerText = c.tier || 'Bronze';
-    document.getElementById('balcao-cli-selos').innerText = c.selos || '0';
+    const elNome = document.getElementById('balcao-cli-nome');
+    if (elNome) elNome.innerText = c.nome_completo;
+    const elCpf = document.getElementById('balcao-cli-cpf');
+    if (elCpf) elCpf.innerText = 'CPF: ' + (c.cpf || 'Não informado');
+    const elTier = document.getElementById('balcao-cli-tier');
+    if (elTier) elTier.innerText = c.tier || 'Bronze';
+    const elSelos = document.getElementById('balcao-cli-selos');
+    if (elSelos) elSelos.innerText = c.selos || '0';
 
     const max = parseInt(<?php echo (int)($cfg['compras_para_recompensa'] ?? 10); ?>);
     const btnResgate = document.getElementById('btn-resgatar-premio');
-    if (parseInt(c.selos) >= max) {
-        btnResgate.style.display = 'block';
-    } else {
-        btnResgate.style.display = 'none';
+    if (btnResgate) {
+        if (parseInt(c.selos) >= max) {
+            btnResgate.style.display = 'block';
+        } else {
+            btnResgate.style.display = 'none';
+        }
     }
 
-    cardCliBalcao.style.display = 'block';
+    if (cardCliBalcao) cardCliBalcao.style.display = 'block';
 }
 
 // Botão Adicionar Selo no Balcão
-document.getElementById('btn-add-selo').addEventListener('click', function() {
-    if (!clienteSelecionadoBalcao) return;
-    const valor = document.getElementById('balcao-valor-compra').value;
+const btnAddSelo = document.getElementById('btn-add-selo');
+if (btnAddSelo) {
+    btnAddSelo.addEventListener('click', function() {
+        if (!clienteSelecionadoBalcao) return;
+        const valInput = document.getElementById('balcao-valor-compra');
+        const valor = valInput ? valInput.value : 0;
 
-    this.innerText = 'Processando...';
-    this.disabled = true;
+        this.innerText = 'Processando...';
+        this.disabled = true;
 
-    fetch('api_fidelidade.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `acao=adicionar_selo&cliente_id=${clienteSelecionadoBalcao.id}&valor_compra=${valor}&instituicao_id=<?php echo $id_loja; ?>`
-    })
-    .then(r => r.json())
-    .then(res => {
-        alert(res.message);
-        this.innerHTML = '<i class="fas fa-stamp"></i> Adicionar Selo';
-        this.disabled = false;
-        if (res.success) {
-            clienteSelecionadoBalcao.selos = res.selos_atuais;
-            document.getElementById('balcao-cli-selos').innerText = res.selos_atuais;
-            if (res.recompensa_disponivel) {
-                document.getElementById('btn-resgatar-premio').style.display = 'block';
+        fetch('api_fidelidade.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `acao=adicionar_selo&cliente_id=${clienteSelecionadoBalcao.id}&valor_compra=${valor}&instituicao_id=<?php echo $id_loja; ?>`
+        })
+        .then(r => r.json())
+        .then(res => {
+            alert(res.message);
+            this.innerHTML = '<i class="fas fa-stamp"></i> Adicionar Selo';
+            this.disabled = false;
+            if (res.success) {
+                clienteSelecionadoBalcao.selos = res.selos_atuais;
+                const elSelos = document.getElementById('balcao-cli-selos');
+                if (elSelos) elSelos.innerText = res.selos_atuais;
+                const btnResgate = document.getElementById('btn-resgatar-premio');
+                if (btnResgate && res.recompensa_disponivel) {
+                    btnResgate.style.display = 'block';
+                }
             }
-        }
+        });
     });
-});
+}
 
 // Botão Resgatar Prêmio no Balcão
-document.getElementById('btn-resgatar-premio').addEventListener('click', function() {
-    if (!clienteSelecionadoBalcao) return;
-    if (!confirm('Confirmar resgate do desconto de 10 compras para este cliente?')) return;
+const btnResgatarPremio = document.getElementById('btn-resgatar-premio');
+if (btnResgatarPremio) {
+    btnResgatarPremio.addEventListener('click', function() {
+        if (!clienteSelecionadoBalcao) return;
+        if (!confirm('Confirmar resgate do desconto de 10 compras para este cliente?')) return;
 
-    this.innerText = 'Resgatando...';
-    this.disabled = true;
+        this.innerText = 'Resgatando...';
+        this.disabled = true;
 
-    fetch('api_fidelidade.php', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `acao=resgatar_recompensa&cliente_id=${clienteSelecionadoBalcao.id}&instituicao_id=<?php echo $id_loja; ?>`
+        fetch('api_fidelidade.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `acao=resgatar_recompensa&cliente_id=${clienteSelecionadoBalcao.id}&instituicao_id=<?php echo $id_loja; ?>`
+        })
+        .then(r => r.json())
+        .then(res => {
+            alert(res.message);
+            this.innerHTML = '<i class="fas fa-gift"></i> Resgatar 15%';
+            this.disabled = false;
+            if (res.success) {
+                clienteSelecionadoBalcao.selos = res.selos_restantes;
+                const elSelos = document.getElementById('balcao-cli-selos');
+                if (elSelos) elSelos.innerText = res.selos_restantes;
+                this.style.display = 'none';
+            }
+        });
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 7. GESTOR MODULAR DE REGRAS DE FIDELIDADE & PRESETS
+// ══════════════════════════════════════════════════════════════════
+const modalConstrutor = document.getElementById("modal-construtor-regra");
+const gridRegrasHub = document.getElementById("grid-regras-hub");
+let regrasModularesCarregadas = [];
+
+function abrirModalConstrutor(dados = null) {
+    document.getElementById("form-salvar-regra-modular").reset();
+    document.getElementById("regra-id-input").value = "0";
+    document.getElementById("modal-regra-titulo").innerText = "Nova Regra de Fidelidade & Desconto";
+
+    if (dados) {
+        document.getElementById("modal-regra-titulo").innerText = "Editar Regra de Fidelidade";
+        document.getElementById("regra-id-input").value = dados.id || "0";
+        document.getElementById("regra-nome-input").value = dados.nome_regra || "";
+        document.getElementById("regra-mecanica-select").value = dados.tipo_mecanica || "cartao_selos";
+        document.getElementById("regra-alvo-select").value = dados.categoria_alvo || "todos";
+        document.getElementById("regra-condicao-tipo").value = dados.condicao_tipo || "quantidade_compras";
+        document.getElementById("regra-condicao-valor").value = dados.condicao_valor || "10";
+        document.getElementById("regra-recompensa-tipo").value = dados.recompensa_tipo || "desconto_percentual";
+        document.getElementById("regra-recompensa-valor").value = dados.recompensa_valor || "15";
+        document.getElementById("regra-limite-desconto").value = dados.limite_desconto_recompensa || "50";
+        document.getElementById("regra-texto-cartao").value = dados.texto_cartao || dados.nome_regra || "";
+        document.getElementById("regra-cor-primaria").value = dados.cor_hex || "#0d9488";
+        document.getElementById("regra-cor-secundaria").value = dados.cor_secundaria || "#115e59";
+        document.getElementById("regra-icone-select").value = dados.icone || "fas fa-paw";
+        if (dados.item_alvo_id) document.getElementById("regra-item-alvo-select").value = dados.item_alvo_id;
+        if (dados.recompensa_item_id) document.getElementById("regra-recompensa-item-select").value = dados.recompensa_item_id;
+    }
+
+    atualizarCamposDinamicosModal();
+    atualizarLivePreviewModal();
+    modalConstrutor.style.display = "flex";
+}
+
+function fecharModalConstrutor() {
+    if (modalConstrutor) modalConstrutor.style.display = "none";
+}
+
+const btnNovaRegraHub = document.getElementById("btn-nova-regra-hub");
+if (btnNovaRegraHub) btnNovaRegraHub.onclick = () => abrirModalConstrutor();
+
+// Condicionais de exibição nos selects do construtor
+function atualizarCamposDinamicosModal() {
+    const elAlvo = document.getElementById("regra-alvo-select");
+    const boxItem = document.getElementById("box-item-especifico");
+    if (elAlvo && boxItem) boxItem.style.display = (elAlvo.value === "item_especifico") ? "block" : "none";
+
+    const elCondTipo = document.getElementById("regra-condicao-tipo");
+    const boxDias = document.getElementById("box-dias-semana");
+    if (elCondTipo && boxDias) boxDias.style.display = (elCondTipo.value === "dia_semana") ? "block" : "none";
+
+    const elRecTipo = document.getElementById("regra-recompensa-tipo");
+    const boxRec = document.getElementById("box-recompensa-item");
+    if (elRecTipo && boxRec) boxRec.style.display = (elRecTipo.value === "item_gratis") ? "block" : "none";
+}
+
+const selAlvo = document.getElementById("regra-alvo-select");
+if (selAlvo) selAlvo.onchange = atualizarCamposDinamicosModal;
+
+const selCondTipo = document.getElementById("regra-condicao-tipo");
+if (selCondTipo) selCondTipo.onchange = atualizarCamposDinamicosModal;
+
+const selRecTipo = document.getElementById("regra-recompensa-tipo");
+if (selRecTipo) selRecTipo.onchange = atualizarCamposDinamicosModal;
+
+// Live Preview no Construtor
+function atualizarLivePreviewModal() {
+    const c1 = document.getElementById("regra-cor-primaria").value;
+    const c2 = document.getElementById("regra-cor-secundaria").value;
+    const icone = document.getElementById("regra-icone-select").value;
+    const titulo = document.getElementById("regra-texto-cartao").value || document.getElementById("regra-nome-input").value || "Cartão Fidelidade Pet VIP";
+    const meta = parseInt(document.getElementById("regra-condicao-valor").value) || 10;
+    const recTipo = document.getElementById("regra-recompensa-tipo").value;
+    const recVal = document.getElementById("regra-recompensa-valor").value;
+
+    const card = document.getElementById("modal-card-live-preview");
+    card.style.background = `linear-gradient(135deg, ${c2}, ${c1})`;
+
+    document.getElementById("modal-preview-title").innerText = titulo;
+    document.getElementById("modal-preview-icon").innerHTML = `<i class="${icone}"></i>`;
+    document.getElementById("modal-preview-progress-text").innerText = `3 de ${meta} selos`;
+
+    let benefTxt = "";
+    if (recTipo === "desconto_percentual") benefTxt = `${recVal}% de Desconto`;
+    else if (recTipo === "desconto_fixo") benefTxt = `R$ ${recVal} de Desconto`;
+    else if (recTipo === "item_gratis") benefTxt = `Item / Banho Grátis`;
+    else if (recTipo === "cashback") benefTxt = `${recVal}% de Cashback`;
+    document.getElementById("modal-preview-benefit").innerText = benefTxt;
+
+    // Slots
+    const slotsEl = document.getElementById("modal-preview-slots");
+    slotsEl.innerHTML = "";
+    const totalSlots = Math.min(10, Math.max(2, meta));
+    for (let i = 1; i <= totalSlots; i++) {
+        const d = document.createElement("div");
+        const cheio = (i <= 3);
+        const ehUltimo = (i === totalSlots);
+        d.style.cssText = `aspect-ratio: 1/1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; border: 1.5px ${cheio ? "solid #f1c40f" : "dashed rgba(255,255,255,0.4)"}; background: ${cheio ? "#ffffff" : "rgba(255,255,255,0.15)"}; color: ${cheio ? "#d97706" : "rgba(255,255,255,0.8)"};`;
+        d.innerHTML = cheio ? (ehUltimo ? `<i class="fas fa-gift"></i>` : `<i class="${icone}"></i>`) : (ehUltimo ? `<i class="fas fa-gift" style="opacity:0.4;"></i>` : `<span>${i}</span>`);
+        slotsEl.appendChild(d);
+    }
+}
+
+["regra-cor-primaria", "regra-cor-secundaria", "regra-icone-select", "regra-texto-cartao", "regra-nome-input", "regra-condicao-valor", "regra-recompensa-valor", "regra-recompensa-tipo"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener("input", atualizarLivePreviewModal);
+        el.addEventListener("change", atualizarLivePreviewModal);
+    }
+});
+
+// Presets Rápidos
+document.querySelectorAll(".btn-preset-regra").forEach(btn => {
+    btn.onclick = function() {
+        const p = this.getAttribute("data-preset");
+        let dados = {
+            id: 0,
+            tipo_mecanica: "cartao_selos",
+            categoria_alvo: "todos",
+            condicao_tipo: "quantidade_compras",
+            condicao_valor: 10,
+            recompensa_tipo: "desconto_percentual",
+            recompensa_valor: 15,
+            limite_desconto_recompensa: 50,
+            cor_hex: "#0d9488",
+            cor_secundaria: "#115e59",
+            icone: "fas fa-paw",
+            texto_cartao: "Cartão Fidelidade Pet VIP",
+            nome_regra: "Cartão Tradicional 10 Selos"
+        };
+
+        if (p === "clube_banho") {
+            dados.nome_regra = "Clube do Banho VIP (Compre 5 Ganhe 1)";
+            dados.tipo_mecanica = "compre_ganhe";
+            dados.categoria_alvo = "servicos";
+            dados.condicao_tipo = "quantidade_compras";
+            dados.condicao_valor = 5;
+            dados.recompensa_tipo = "item_gratis";
+            dados.cor_hex = "#2563eb";
+            dados.cor_secundaria = "#1e3a8a";
+            dados.icone = "fas fa-bath";
+            dados.texto_cartao = "Clube do Banho VIP";
+        } else if (p === "terca_dobro") {
+            dados.nome_regra = "Terça Turbo (2x Selos)";
+            dados.tipo_mecanica = "cartao_selos";
+            dados.categoria_alvo = "todos";
+            dados.condicao_tipo = "dia_semana";
+            dados.condicao_valor = 1;
+            dados.recompensa_tipo = "desconto_percentual";
+            dados.recompensa_valor = 20;
+            dados.cor_hex = "#f59e0b";
+            dados.cor_secundaria = "#b45309";
+            dados.icone = "fas fa-calendar-day";
+            dados.texto_cartao = "Terça Turbo Pet";
+        } else if (p === "cashback_5") {
+            dados.nome_regra = "Cashback VIP 5% em Todas as Compras";
+            dados.tipo_mecanica = "cashback";
+            dados.categoria_alvo = "todos";
+            dados.condicao_tipo = "sem_condicao";
+            dados.condicao_valor = 0;
+            dados.recompensa_tipo = "cashback";
+            dados.recompensa_valor = 5;
+            dados.cor_hex = "#10b981";
+            dados.cor_secundaria = "#047857";
+            dados.icone = "fas fa-coins";
+            dados.texto_cartao = "Cartão Cashback VIP";
+        } else if (p === "aniversario") {
+            dados.nome_regra = "Especial Mês Aniversariante (20% OFF)";
+            dados.tipo_mecanica = "desconto_direto";
+            dados.categoria_alvo = "todos";
+            dados.condicao_tipo = "aniversario";
+            dados.condicao_valor = 0;
+            dados.recompensa_tipo = "desconto_percentual";
+            dados.recompensa_valor = 20;
+            dados.cor_hex = "#ec4899";
+            dados.cor_secundaria = "#9d174d";
+            dados.icone = "fas fa-birthday-cake";
+            dados.texto_cartao = "Aniversário VIP Pet";
+        }
+
+        abrirModalConstrutor(dados);
+    };
+});
+
+// Carregar Regras do Backend
+function carregarRegrasModulares() {
+    fetch("api_fidelidade.php?acao=listar_regras&instituicao_id=<?php echo $id_loja; ?>")
+    .then(r => r.json())
+    .then(res => {
+        if (!res.success) {
+            gridRegrasHub.innerHTML = `<div style="grid-column:1/-1;color:red;text-align:center;">Erro: ${res.message}</div>`;
+            return;
+        }
+
+        regrasModularesCarregadas = res.regras || [];
+
+        if (regrasModularesCarregadas.length === 0) {
+            gridRegrasHub.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 50px 20px; background: #ffffff; border-radius: 16px; border: 2px dashed #cbd5e1;">
+                    <i class="fas fa-layer-group" style="font-size: 3rem; color: #94a3b8; margin-bottom: 15px;"></i>
+                    <h3 style="color: #334155; margin-bottom: 6px;">Nenhuma regra personalizada ativa no momento</h3>
+                    <p style="color: #64748b; max-width: 460px; margin: 0 auto 20px; font-size: 0.9rem;">
+                        Clique em <strong>Criar Nova Regra</strong> ou escolha um dos <strong>Modelos Prontos</strong> acima para ativar seu primeiro cartão de fidelidade modular!
+                    </p>
+                    <button type="button" class="btn btn-primary" onclick="abrirModalConstrutor()" style="background:#0d9488;border-color:#0d9488;padding:10px 20px;border-radius:8px;font-weight:700;">
+                        <i class="fas fa-plus"></i> Criar Primeiro Cartão
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        let html = "";
+        regrasModularesCarregadas.forEach(r => {
+            const ativa = (parseInt(r.ativo) === 1);
+            let mecDesc = "Cartão de Selos";
+            if (r.tipo_mecanica === "pontos") mecDesc = "Pontuação por R$";
+            else if (r.tipo_mecanica === "cashback") mecDesc = "Cashback";
+            else if (r.tipo_mecanica === "compre_ganhe") mecDesc = "Compre & Ganhe";
+            else if (r.tipo_mecanica === "desconto_direto") mecDesc = "Desconto Direto";
+
+            let benefDesc = "";
+            if (r.recompensa_tipo === "desconto_percentual") benefDesc = `${parseFloat(r.recompensa_valor)}% OFF`;
+            else if (r.recompensa_tipo === "desconto_fixo") benefDesc = `R$ ${parseFloat(r.recompensa_valor).toFixed(2)} OFF`;
+            else if (r.recompensa_tipo === "item_gratis") benefDesc = `Brinde / Serviço Grátis`;
+            else if (r.recompensa_tipo === "cashback") benefDesc = `${parseFloat(r.recompensa_valor)}% Cashback`;
+
+            let condDesc = `A cada ${parseInt(r.condicao_valor)} compras`;
+            if (r.condicao_tipo === "valor_minimo") condDesc = `Compras acima de R$ ${parseFloat(r.condicao_valor).toFixed(2)}`;
+            else if (r.condicao_tipo === "dia_semana") condDesc = "Dias especiais da semana";
+            else if (r.condicao_tipo === "aniversario") condDesc = "Mês de aniversário";
+            else if (r.condicao_tipo === "sem_condicao") condDesc = "Sem valor mínimo";
+
+            html += `
+                <div class="widget-card" style="background: #ffffff; border-radius: 16px; border: 1px solid ${ativa ? "#cbd5e1" : "#e2e8f0"}; opacity: ${ativa ? "1" : "0.75"}; box-shadow: 0 4px 16px rgba(0,0,0,0.04); display: flex; flex-direction: column;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <span style="background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.75rem; padding: 4px 10px; border-radius: 20px;">
+                            ${mecDesc}
+                        </span>
+                        
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: ${ativa ? "#059669" : "#94a3b8"};">
+                            <input type="checkbox" ${ativa ? "checked" : ""} onchange="alternarStatusRegra(${r.id})" style="width: 18px; height: 18px; cursor: pointer;">
+                            ${ativa ? "Ativo" : "Pausado"}
+                        </label>
+                    </div>
+
+                    <!-- Mini Cartão Estilizado -->
+                    <div style="background: linear-gradient(135deg, ${r.cor_secundaria || "#115e59"}, ${r.cor_hex || "#0d9488"}); border-radius: 14px; padding: 14px; color: white; margin-bottom: 14px; box-shadow: 0 6px 14px rgba(0,0,0,0.15);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <i class="${r.icone || "fas fa-paw"}" style="font-size: 1.1rem;"></i>
+                            <strong style="font-size: 0.95rem;">${r.texto_cartao || r.nome_regra}</strong>
+                        </div>
+                        <div style="font-size: 0.82rem; opacity: 0.95; display: flex; justify-content: space-between;">
+                            <span>${condDesc}</span>
+                            <span style="font-weight: 800; color: #fef08a;">${benefDesc}</span>
+                        </div>
+                    </div>
+
+                    <!-- Dados e KPIs -->
+                    <div style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 14px; flex: 1;">
+                        <div><strong>Alvo:</strong> ${r.categoria_alvo === "todos" ? "Todos os itens" : (r.categoria_alvo === "servicos" ? "Serviços" : (r.categoria_alvo === "produtos" ? "Produtos" : (r.item_alvo_nome || "Item específico")))}</div>
+                        <div style="display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; font-size: 0.8rem;">
+                            <span>👥 <strong>${r.total_participantes || 0}</strong> clientes</span>
+                            <span>🏆 <strong>${r.total_ciclos || 0}</strong> ciclos concluídos</span>
+                        </div>
+                    </div>
+
+                    <!-- Ações -->
+                    <div style="display: flex; gap: 8px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="editarRegraPorId(${r.id})" style="flex: 1; border-radius: 6px; font-weight: 600; font-size: 0.82rem;">
+                            <i class="fas fa-edit"></i> Editar
+                        </button>
+                        <a href="cartao_cliente.php?loja_id=<?php echo $id_loja; ?>" target="_blank" class="btn btn-sm" style="background:#e0f2fe;color:#0369a1;border-radius:6px;font-weight:600;font-size:0.82rem;text-decoration:none;display:inline-flex;align-items:center;padding:6px 10px;">
+                            <i class="fas fa-mobile-alt"></i> Cartão
+                        </a>
+                        <button type="button" class="btn btn-sm" onclick="excluirRegra(${r.id})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+
+                </div>
+            `;
+        });
+
+        gridRegrasHub.innerHTML = html;
+    });
+}
+
+function alternarStatusRegra(id) {
+    fetch("api_fidelidade.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: `acao=toggle_regra&id=${id}&instituicao_id=<?php echo $id_loja; ?>`
+    })
+    .then(r => r.json())
+    .then(res => {
+        carregarRegrasModulares();
+    });
+}
+
+function editarRegraPorId(id) {
+    const r = regrasModularesCarregadas.find(x => x.id == id);
+    if (r) abrirModalConstrutor(r);
+}
+
+function excluirRegra(id) {
+    if (!confirm("Tem certeza que deseja excluir esta regra de fidelidade? O progresso dos clientes vinculados a este cartão será resetado.")) return;
+    
+    fetch("api_fidelidade.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/x-www-form-urlencoded"},
+        body: `acao=excluir_regra&id=${id}&instituicao_id=<?php echo $id_loja; ?>`
     })
     .then(r => r.json())
     .then(res => {
         alert(res.message);
-        this.innerHTML = '<i class="fas fa-gift"></i> Resgatar 15%';
-        this.disabled = false;
-        if (res.success) {
-            clienteSelecionadoBalcao.selos = res.selos_restantes;
-            document.getElementById('balcao-cli-selos').innerText = res.selos_restantes;
-            this.style.display = 'none';
-        }
+        carregarRegrasModulares();
     });
-});
+}
+
+// Salvar Regra via AJAX
+const formSalvarRegraMod = document.getElementById("form-salvar-regra-modular");
+if (formSalvarRegraMod) {
+    formSalvarRegraMod.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const btn = document.getElementById("btn-submit-regra");
+        const orig = btn ? btn.innerHTML : 'Salvar';
+        if (btn) {
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Gravando...`;
+            btn.disabled = true;
+        }
+
+        const formData = new FormData(this);
+        formData.append("acao", "salvar_regra");
+
+        fetch("api_fidelidade.php", {
+            method: "POST",
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            alert(res.message);
+            if (btn) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+            if (res.success) {
+                fecharModalConstrutor();
+                carregarRegrasModulares();
+            }
+        })
+        .catch(err => {
+            alert("Erro ao gravar regra modular.");
+            if (btn) {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            }
+        });
+    });
+}
+
+// Inicialização automática das regras modulares
+carregarRegrasModulares();
+
 </script>
 
 <?php include 'includes/_footer.php'; ?>

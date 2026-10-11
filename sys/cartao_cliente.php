@@ -48,10 +48,30 @@ if ($cliente_id > 0) {
     $cliente = $stCli->fetch(PDO::FETCH_ASSOC);
 
     if ($cliente) {
-        $stFid = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE cliente_id = ? AND instituicao_id = ?");
-        $stFid->execute([$cliente_id, $loja_id]);
-        $fidReal = $stFid->fetch(PDO::FETCH_ASSOC);
-        if ($fidReal) $fid = $fidReal;
+        // Verifica se há progresso em alguma regra modular ativa
+        $stRegraAtiva = $pdo->prepare("SELECT r.*, cpr.progresso_atual, cpr.ciclos_completados, cpr.recompensa_disponivel
+                                       FROM cliente_progresso_regras cpr
+                                       JOIN fidelidade_regras r ON cpr.regra_id = r.id
+                                       WHERE cpr.cliente_id = ? AND r.instituicao_id = ? AND r.ativo = 1
+                                       ORDER BY cpr.ultimo_uso DESC LIMIT 1");
+        $stRegraAtiva->execute([$cliente_id, $loja_id]);
+        $regraAtiva = $stRegraAtiva->fetch(PDO::FETCH_ASSOC);
+
+        if ($regraAtiva) {
+            $cfg['texto_cartao'] = $regraAtiva['texto_cartao'] ?: $regraAtiva['nome_regra'];
+            $cfg['cor_cartao_hex'] = $regraAtiva['cor_hex'] ?: $cfg['cor_cartao_hex'];
+            $cfg['cor_cartao_secundaria'] = $regraAtiva['cor_secundaria'] ?: $cfg['cor_cartao_secundaria'];
+            $cfg['compras_para_recompensa'] = max(2, (int)$regraAtiva['condicao_valor']);
+            $cfg['recompensa_valor'] = $regraAtiva['recompensa_valor'];
+            $cfg['recompensa_tipo'] = $regraAtiva['recompensa_tipo'];
+            $fid['selos_atuais'] = (int)$regraAtiva['progresso_atual'];
+            $fid['ciclos_completados'] = (int)$regraAtiva['ciclos_completados'];
+        } else {
+            $stFid = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE cliente_id = ? AND instituicao_id = ?");
+            $stFid->execute([$cliente_id, $loja_id]);
+            $fidReal = $stFid->fetch(PDO::FETCH_ASSOC);
+            if ($fidReal) $fid = $fidReal;
+        }
     }
 }
 

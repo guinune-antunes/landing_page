@@ -61,6 +61,7 @@ $sql_ag = "SELECT a.*,
            JOIN pets p ON a.pet_id = p.id
            JOIN clientes c ON p.cliente_id = c.id
            WHERE a.instituicao_id = ? 
+           AND a.status != 'Cancelado'
            AND a.data_hora_inicio BETWEEN ? AND ?
            ORDER BY a.data_hora_inicio";
 
@@ -85,11 +86,12 @@ function calcularPosicao($datetime) {
 }
 
 function calcularAltura($inicio, $fim) {
-    return (strtotime($fim) - strtotime($inicio)) / 60; 
+    return max(30, (strtotime($fim) - strtotime($inicio)) / 60); 
 }
 
 function getServiceClass($agendamento) {
     if ($agendamento['status'] == 'Remarcado') return 'status-remarcado';
+    if ($agendamento['status'] == 'Concluído') return 'status-concluido';
     switch ($agendamento['servico']) {
         case 'Banho': return 'service-banho';
         case 'Banho e Tosa': return 'service-banho-e-tosa';
@@ -151,10 +153,11 @@ include 'includes/_sidebar.php';
                                 $height = calcularAltura($ag['data_hora_inicio'], $ag['data_hora_fim']);
                                 $classeServico = getServiceClass($ag); 
                                 
-                                // Formatação blindada de Data e Hora
+                                // Formatação de Data e Hora
                                 $dataInicio = $ag['data_hora_inicio'];
                                 $dataApp = $dataInicio ? date('Y-m-d', strtotime($dataInicio)) : '';
                                 $horaApp = $dataInicio ? date('H:i', strtotime($dataInicio)) : '';
+                                $profId = !empty($ag['profissional_id']) ? $ag['profissional_id'] : (!empty($ag['profissional']) && is_numeric($ag['profissional']) ? $ag['profissional'] : '0');
                             ?>
                                 <button type="button" 
                                     class="appointment-card <?php echo $classeServico; ?>" 
@@ -162,17 +165,21 @@ include 'includes/_sidebar.php';
                                     title="<?php echo htmlspecialchars($ag['observacoes'] ?? ''); ?>"
                                     
                                     data-id="<?php echo $ag['id']; ?>"
-                                    data-cliente="<?php echo $ag['real_cliente_id']; ?>"
-                                    data-pet="<?php echo $ag['real_pet_id']; ?>"
-                                    data-servico="<?php echo $ag['servico']; ?>"
-                                    data-data="<?php echo $dataApp; ?>"
-                                    data-hora="<?php echo $horaApp; ?>"
-                                    data-profissional="<?php echo $ag['profissional'] ?? '0'; ?>"
+                                    data-cliente-id="<?php echo $ag['real_cliente_id']; ?>"
+                                    data-pet-id="<?php echo $ag['real_pet_id']; ?>"
+                                    data-servico="<?php echo htmlspecialchars($ag['servico'] ?? ''); ?>"
+                                    data-date="<?php echo $dataApp; ?>"
+                                    data-time="<?php echo $horaApp; ?>"
+                                    data-profissional-id="<?php echo $profId; ?>"
                                     data-obs="<?php echo htmlspecialchars($ag['observacoes'] ?? ''); ?>"
+                                    data-status="<?php echo htmlspecialchars($ag['status']); ?>"
                                 >
-                                    <p class="pet-name"><?php echo htmlspecialchars($ag['pet_nome']); ?></p>
+                                    <p class="pet-name"><i class="fas fa-paw"></i> <?php echo htmlspecialchars($ag['pet_nome']); ?></p>
                                     <p class="service-name"><?php echo htmlspecialchars($ag['servico']); ?></p>
                                     <small>Tutor: <?php echo htmlspecialchars($ag['cliente_nome']); ?></small>
+                                    <?php if (!empty($ag['profissional']) && !is_numeric($ag['profissional'])): ?>
+                                        <small style="opacity: 0.85;"><i class="fas fa-user-md"></i> <?php echo htmlspecialchars($ag['profissional']); ?></small>
+                                    <?php endif; ?>
                                 </button>
                             <?php endforeach; ?>
 
@@ -186,18 +193,23 @@ include 'includes/_sidebar.php';
 </div>
 
 <div class="modal-overlay" id="appointment-modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>Novo Agendamento</h2>
-            <button class="close-modal-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+    <div class="modal-content" style="max-width: 520px; width: 100%;">
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
+            <h2 id="modal-app-title">Novo Agendamento</h2>
+            <button type="button" class="close-modal-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
         </div>
         <div class="modal-body">
+            <div id="app-status-container" style="display:none; margin-bottom: 12px; padding: 6px 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #555;">Status atual:</span>
+                <span id="app-status-pill" style="display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; margin-left: 6px;"></span>
+            </div>
+
             <form id="appointment-form"> 
                 <input type="hidden" id="app-id" value="">
 
                 <div class="form-group">
-                    <label>Cliente</label>
-                    <select id="app-client" required>
+                    <label for="app-client">Cliente *</label>
+                    <select id="app-client" required style="width:100%;">
                         <option value="">Selecione um cliente...</option>
                         <?php foreach ($clientes as $cliente): ?>
                             <option value="<?php echo $cliente['id']; ?>">
@@ -207,14 +219,14 @@ include 'includes/_sidebar.php';
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Pet</label>
-                    <select id="app-pet" disabled required>
+                    <label for="app-pet">Pet *</label>
+                    <select id="app-pet" disabled required style="width:100%;">
                         <option value="">Selecione um cliente primeiro</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Serviço</label>
-                    <select id="app-service" required>
+                    <label for="app-service">Serviço *</label>
+                    <select id="app-service" required style="width:100%;">
                         <option value="">Selecione um serviço...</option>
                         <option value="Banho">Banho (1h)</option>
                         <option value="Banho e Tosa">Banho e Tosa (2h)</option>
@@ -223,19 +235,19 @@ include 'includes/_sidebar.php';
                         <option value="Vacina">Vacina (30min)</option>
                     </select>
                 </div>
-                <div class="form-group-row">
-                    <div class="form-group">
-                        <label>Data</label>
-                        <input type="date" id="app-date" required>
+                <div class="form-group-row" style="display:flex; gap:12px;">
+                    <div class="form-group" style="flex:1;">
+                        <label for="app-date">Data *</label>
+                        <input type="date" id="app-date" required style="width:100%;">
                     </div>
-                    <div class="form-group">
-                        <label>Horário Inicial</label>
-                        <input type="time" id="app-time" step="900" min="08:00" max="18:00" required>
+                    <div class="form-group" style="flex:1;">
+                        <label for="app-time">Horário Inicial *</label>
+                        <input type="time" id="app-time" step="900" min="08:00" max="18:00" required style="width:100%;">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Profissional</label>
-                    <select id="app-professional">
+                    <label for="app-professional">Profissional</label>
+                    <select id="app-professional" style="width:100%;">
                         <option value="0">Qualquer um / Não especificado</option>
                         <?php foreach ($profissionais as $prof): ?>
                             <option value="<?php echo $prof['id']; ?>">
@@ -245,148 +257,29 @@ include 'includes/_sidebar.php';
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Observações</label>
-                    <textarea id="app-notes" rows="3" placeholder="Ex: Pet alérgico a shampoo comum"></textarea>
+                    <label for="app-notes">Observações</label>
+                    <textarea id="app-notes" rows="3" placeholder="Ex: Pet alérgico a shampoo comum" style="width:100%;"></textarea>
                 </div>
             </form>
         </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary close-modal-btn">Cancelar</button>
-            <button class="btn btn-primary" id="save-app-btn">Salvar Agendamento</button>
+        <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div id="modal-app-actions-left" style="display:none; gap:6px;">
+                <button type="button" class="btn btn-sm btn-success" id="btn-concluir-app" title="Marcar atendimento como Concluído">
+                    <i class="fas fa-check"></i> Concluir
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" id="btn-cancelar-app" title="Cancelar este agendamento">
+                    <i class="fas fa-times"></i> Cancelar Agendamento
+                </button>
+            </div>
+            <div style="display:flex; gap:8px; margin-left:auto;">
+                <button type="button" class="btn btn-secondary close-modal-btn" id="cancel-app-btn">Fechar</button>
+                <button type="button" class="btn btn-sm btn-warning" id="btn-remarcar-app" style="display:none;">
+                    <i class="fas fa-calendar-alt"></i> Remarcar
+                </button>
+                <button type="button" class="btn btn-primary" id="save-app-btn">Salvar Agendamento</button>
+            </div>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('appointment-modal');
-    const btnAdd = document.getElementById('add-appointment-btn');
-    const btnSave = document.getElementById('save-app-btn');
-    const selectClient = document.getElementById('app-client');
-    const selectPet = document.getElementById('app-pet');
-    
-    // Abrir e fechar modal
-    document.querySelectorAll('.close-modal-btn').forEach(btn => {
-        btn.onclick = () => modal.style.display = 'none';
-    });
-
-    // Função inteligente para buscar pets e já selecionar o pet correto na edição
-    function carregarPets(clienteId, petIdSelecionado = null) {
-        selectPet.innerHTML = '<option value="">Carregando pets...</option>';
-        selectPet.disabled = true;
-
-        if(!clienteId) {
-            selectPet.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
-            return;
-        }
-
-        fetch(`api_buscar_pets.php?cliente_id=${clienteId}`)
-            .then(res => res.json())
-            .then(data => {
-                selectPet.innerHTML = '<option value="">Selecione o pet...</option>';
-                data.forEach(pet => {
-                    const selected = (pet.id == petIdSelecionado) ? 'selected' : '';
-                    selectPet.innerHTML += `<option value="${pet.id}" ${selected}>${pet.nome}</option>`;
-                });
-                selectPet.disabled = false;
-            })
-            .catch(err => {
-                selectPet.innerHTML = '<option value="">Erro ao carregar pets</option>';
-            });
-    }
-
-    // Evento quando muda o cliente manualmente no "Novo Agendamento"
-    selectClient.addEventListener('change', function() {
-        carregarPets(this.value);
-    });
-
-    // Evento do botão "Novo Agendamento" (Limpa tudo)
-    btnAdd.onclick = () => {
-        document.querySelector('#appointment-modal h2').innerText = 'Novo Agendamento';
-        document.getElementById('appointment-form').reset();
-        document.getElementById('app-id').value = ''; 
-        selectPet.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
-        selectPet.disabled = true;
-        
-        // Define a data atual como mínimo no momento de criar
-        const hoje = new Date().toISOString().split('T')[0];
-        document.getElementById('app-date').min = hoje;
-        document.getElementById('app-date').value = hoje;
-        
-        modal.style.display = 'flex';
-    };
-
-    // A MÁGICA DO EDITAR: Evento de clique nos botões da agenda
-    document.querySelectorAll('.appointment-card').forEach(card => {
-        card.addEventListener('click', function() {
-            const id = this.getAttribute('data-id');
-            const clienteId = this.getAttribute('data-cliente');
-            const petId = this.getAttribute('data-pet');
-            const servico = this.getAttribute('data-servico');
-            const dataStr = this.getAttribute('data-data');
-            const horaStr = this.getAttribute('data-hora');
-            const profId = this.getAttribute('data-profissional');
-            const obs = this.getAttribute('data-obs');
-
-            // Preenche os campos de texto/selects simples
-            document.getElementById('app-id').value = id;
-            document.getElementById('app-client').value = clienteId;
-            document.getElementById('app-service').value = servico;
-            
-            // Remove o 'min' date para permitir visualizar/editar agendamentos do passado
-            document.getElementById('app-date').removeAttribute('min'); 
-            document.getElementById('app-date').value = dataStr;
-            
-            document.getElementById('app-time').value = horaStr;
-            document.getElementById('app-professional').value = profId;
-            document.getElementById('app-notes').value = obs;
-
-            document.querySelector('#appointment-modal h2').innerText = 'Editar / Remarcar Agendamento';
-
-            // Dispara a busca dos pets do cliente e já seleciona o pet correto quando a lista voltar
-            carregarPets(clienteId, petId);
-
-            modal.style.display = 'flex';
-        });
-    });
-
-    // Salvar Agendamento
-    btnSave.addEventListener('click', function() {
-        const data = {
-            id: document.getElementById('app-id').value,
-            cliente_id: selectClient.value,
-            pet_id: selectPet.value,
-            servico: document.getElementById('app-service').value,
-            data: document.getElementById('app-date').value,
-            hora: document.getElementById('app-time').value,
-            profissional_id: document.getElementById('app-professional').value,
-            observacoes: document.getElementById('app-notes').value
-        };
-
-        if(!data.cliente_id || !data.pet_id || !data.servico || !data.data || !data.hora) {
-            alert("Preencha todos os campos obrigatórios.");
-            return;
-        }
-
-        btnSave.innerText = "Salvando...";
-        btnSave.disabled = true;
-
-        fetch('api_salvar_agendamento.php', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        })
-        .then(res => res.json())
-        .then(res => {
-            alert(res.message);
-            if(res.success) location.reload();
-            else {
-                btnSave.innerText = "Salvar Agendamento";
-                btnSave.disabled = false;
-            }
-        });
-    });
-});
-</script>
 
 <?php include 'includes/_footer.php'; ?>

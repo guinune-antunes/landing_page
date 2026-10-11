@@ -354,6 +354,48 @@ CREATE TABLE IF NOT EXISTS `promocoes` (
   KEY `idx_inst_ativo` (`instituicao_id`,`ativo`,`data_fim`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS `fidelidade_regras` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `nome_regra` varchar(200) NOT NULL,
+  `descricao` text DEFAULT NULL,
+  `tipo_mecanica` enum('cartao_selos','pontos','cashback','desconto_direto','compre_ganhe') NOT NULL DEFAULT 'cartao_selos',
+  `categoria_alvo` enum('todos','servicos','produtos','categoria_especifica','item_especifico') NOT NULL DEFAULT 'todos',
+  `item_alvo_id` int(10) UNSIGNED DEFAULT NULL,
+  `condicao_tipo` enum('quantidade_compras','valor_minimo','dia_semana','aniversario','sem_condicao') NOT NULL DEFAULT 'quantidade_compras',
+  `condicao_valor` decimal(10,2) NOT NULL DEFAULT 10.00,
+  `dias_semana_ativos` json DEFAULT NULL,
+  `recompensa_tipo` enum('desconto_percentual','desconto_fixo','item_gratis','cashback','multiplicador_pontos') NOT NULL DEFAULT 'desconto_percentual',
+  `recompensa_valor` decimal(10,2) NOT NULL DEFAULT 15.00,
+  `recompensa_item_id` int(10) UNSIGNED DEFAULT NULL,
+  `limite_desconto_recompensa` decimal(10,2) DEFAULT NULL,
+  `data_inicio` datetime DEFAULT NULL,
+  `data_fim` datetime DEFAULT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `cor_hex` varchar(20) NOT NULL DEFAULT '#1abc9c',
+  `cor_secundaria` varchar(20) NOT NULL DEFAULT '#2c3e50',
+  `icone` varchar(50) NOT NULL DEFAULT 'fas fa-paw',
+  `texto_cartao` varchar(200) NOT NULL DEFAULT 'Cartão Fidelidade Pet VIP',
+  `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_inst_ativo` (`instituicao_id`, `ativo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `cliente_progresso_regras` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `cliente_id` int(10) UNSIGNED NOT NULL,
+  `regra_id` int(10) UNSIGNED NOT NULL,
+  `progresso_atual` int(11) NOT NULL DEFAULT 0,
+  `ciclos_completados` int(11) NOT NULL DEFAULT 0,
+  `recompensa_disponivel` tinyint(1) NOT NULL DEFAULT 0,
+  `ultimo_uso` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uidx_cli_regra` (`cliente_id`, `regra_id`),
+  KEY `idx_inst_cli` (`instituicao_id`, `cliente_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 
 -- ============================================================
 -- DADOS INICIAIS (Admin do sistema)

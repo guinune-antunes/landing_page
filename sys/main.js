@@ -2,169 +2,368 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("Main.js carregado com sucesso.");
 
     // ===================================================
-    // 1. LÓGICA DO MODAL DA AGENDA
+    // 1. LÓGICA DO MODAL DA AGENDA (COMPLETA E ROBUSTA)
     // ===================================================
     const addAppointmentBtn = document.getElementById('add-appointment-btn');
     const appointmentModal = document.getElementById('appointment-modal');
     
     if (addAppointmentBtn && appointmentModal) {
-        console.log("Agenda detectada.");
+        console.log("Módulo Agenda inicializado com sucesso.");
 
-        const calendarGrid = document.querySelector('.calendar-grid');
-        const modalTitle = appointmentModal.querySelector('.modal-header h2');
-        const closeModalBtn = appointmentModal.querySelector('.close-modal-btn');
-        const cancelBtn = document.getElementById('cancel-app-btn');
-        const saveBtn = document.getElementById('save-app-btn');
+        const calendarGrid     = document.querySelector('.calendar-grid');
+        const modalTitle       = document.getElementById('modal-app-title') || appointmentModal.querySelector('.modal-header h2');
+        const appointmentForm  = document.getElementById('appointment-form');
+        const appIdInput       = document.getElementById('app-id');
+        const clientSelect     = document.getElementById('app-client');
+        const petSelect        = document.getElementById('app-pet');
+        const serviceSelect    = document.getElementById('app-service');
+        const dateInput        = document.getElementById('app-date');
+        const timeInput        = document.getElementById('app-time');
+        const profSelect       = document.getElementById('app-professional');
+        const notesInput       = document.getElementById('app-notes');
         
-        // Campos do Formulário
-        const clientSelect = document.getElementById('app-client');
-        const petSelect = document.getElementById('app-pet');
-        const appointmentForm = document.getElementById('appointment-form-content');
+        const statusContainer  = document.getElementById('app-status-container');
+        const statusPill       = document.getElementById('app-status-pill');
+        const actionsLeft      = document.getElementById('modal-app-actions-left');
+        const btnConcluir      = document.getElementById('btn-concluir-app');
+        const btnCancelar      = document.getElementById('btn-cancelar-app');
+        const btnRemarcar      = document.getElementById('btn-remarcar-app');
+        const saveBtn          = document.getElementById('save-app-btn');
+        const cancelBtn        = document.getElementById('cancel-app-btn');
 
-        let modoModal = 'novo';
-        let idAgendamentoAntigo = null;
+        // Carrega pets do cliente via API
+        function carregarPets(clienteId, petIdSelecionado = null) {
+            petSelect.innerHTML = '<option value="">Carregando pets...</option>';
+            petSelect.disabled = true;
 
-        // --- Função para ABRIR modal (NOVO) ---
+            if (!clienteId) {
+                petSelect.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
+                return Promise.resolve();
+            }
+
+            return fetch(`buscar_pets_cliente.php?cliente_id=${encodeURIComponent(clienteId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    petSelect.innerHTML = '';
+                    const pets = data.pets || (Array.isArray(data) ? data : []);
+
+                    if (pets && pets.length > 0) {
+                        petSelect.innerHTML = '<option value="">Selecione o pet...</option>';
+                        pets.forEach(pet => {
+                            const opt = document.createElement('option');
+                            opt.value = pet.id;
+                            opt.textContent = pet.nome + (pet.especie ? ` (${pet.especie})` : '');
+                            if (petIdSelecionado && String(pet.id) === String(petIdSelecionado)) {
+                                opt.selected = true;
+                            }
+                            petSelect.appendChild(opt);
+                        });
+                        petSelect.disabled = false;
+                        if (petIdSelecionado) {
+                            petSelect.value = String(petIdSelecionado);
+                        }
+                    } else {
+                        petSelect.innerHTML = '<option value="">Este cliente não possui pets cadastrados</option>';
+                        petSelect.disabled = true;
+                    }
+                })
+                .catch(err => {
+                    console.error("Erro ao carregar pets:", err);
+                    petSelect.innerHTML = '<option value="">Erro ao carregar pets</option>';
+                    petSelect.disabled = true;
+                });
+        }
+
+        // Listener para troca de cliente
+        if (clientSelect) {
+            clientSelect.addEventListener('change', function() {
+                carregarPets(this.value);
+            });
+        }
+
+        // Abrir Modal para NOVO Agendamento
         function openModalNovo() {
-            modoModal = 'novo';
-            idAgendamentoAntigo = null;
-            modalTitle.textContent = 'Novo Agendamento';
-            
-            if(appointmentForm) appointmentForm.reset(); 
-            
-            if(petSelect) {
+            if (appointmentForm) appointmentForm.reset();
+            if (appIdInput) appIdInput.value = '';
+
+            if (modalTitle) modalTitle.textContent = 'Novo Agendamento';
+            if (statusContainer) statusContainer.style.display = 'none';
+            if (actionsLeft) actionsLeft.style.display = 'none';
+            if (btnRemarcar) btnRemarcar.style.display = 'none';
+
+            if (saveBtn) {
+                saveBtn.innerText = 'Salvar Agendamento';
+                saveBtn.disabled = false;
+            }
+            if (cancelBtn) cancelBtn.innerText = 'Cancelar';
+
+            if (petSelect) {
                 petSelect.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
                 petSelect.disabled = true;
             }
-            appointmentModal.style.display = 'flex';
-        }
 
-        // --- Função para ABRIR modal (REMARCAR) ---
-        function openModalRemarcar(card) {
-            modoModal = 'remarcar';
-            const dados = card.dataset;
-            idAgendamentoAntigo = dados.id;
-            modalTitle.textContent = 'Editar / Remarcar Agendamento';
-
-            if(clientSelect) clientSelect.value = dados.clienteId;
-            
-            // Preenche os campos se existirem
-            if(document.getElementById('app-service')) document.getElementById('app-service').value = dados.servico;
-            if(document.getElementById('app-date')) document.getElementById('app-date').value = dados.date;
-            if(document.getElementById('app-time')) document.getElementById('app-time').value = dados.time;
-            if(document.getElementById('app-professional')) document.getElementById('app-professional').value = dados.profissional;
-            if(document.getElementById('app-notes')) document.getElementById('app-notes').value = dados.obs;
-            
-            if(petSelect) {
-                petSelect.innerHTML = '<option value="">Carregando pets...</option>';
-                petSelect.disabled = true;
-
-                fetch(`buscar_pets_cliente.php?cliente_id=${dados.clienteId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success && data.pets.length > 0) {
-                            petSelect.innerHTML = '<option value="">Selecione um pet...</option>';
-                            data.pets.forEach(pet => {
-                                const option = document.createElement('option');
-                                option.value = pet.id;
-                                option.textContent = pet.nome;
-                                petSelect.appendChild(option);
-                            });
-                            petSelect.value = dados.petId; 
-                            petSelect.disabled = false;
-                        } else {
-                            petSelect.innerHTML = '<option value="">Cliente sem pets</option>';
-                        }
-                    })
-                    .catch(err => petSelect.innerHTML = '<option value="">Erro ao buscar pets</option>');
+            const hoje = new Date().toISOString().split('T')[0];
+            if (dateInput) {
+                dateInput.removeAttribute('min');
+                dateInput.value = hoje;
+            }
+            if (timeInput && !timeInput.value) {
+                timeInput.value = '09:00';
             }
 
             appointmentModal.style.display = 'flex';
         }
 
-        function closeModal() { appointmentModal.style.display = 'none'; }
+        // Abrir Modal para EDITAR / VISUALIZAR
+        function openModalEditar(card) {
+            const dados = card.dataset;
+            const appId = dados.id;
 
-        // Eventos de Abrir/Fechar
+            if (appIdInput) appIdInput.value = appId;
+            if (modalTitle) modalTitle.textContent = 'Detalhes do Agendamento';
+
+            if (clientSelect) clientSelect.value = dados.clienteId || '';
+            if (serviceSelect) serviceSelect.value = dados.servico || '';
+            if (dateInput) {
+                dateInput.removeAttribute('min');
+                dateInput.value = dados.date || '';
+            }
+            if (timeInput) timeInput.value = dados.time || '';
+            if (profSelect) profSelect.value = dados.profissionalId || '0';
+            if (notesInput) notesInput.value = dados.obs || '';
+
+            // Status Badge
+            const status = dados.status || 'Agendado';
+            if (statusContainer && statusPill) {
+                statusContainer.style.display = 'block';
+                statusPill.textContent = status;
+                if (status === 'Concluído') {
+                    statusPill.style.backgroundColor = '#d4edda';
+                    statusPill.style.color = '#155724';
+                } else if (status === 'Remarcado') {
+                    statusPill.style.backgroundColor = '#e2e3e5';
+                    statusPill.style.color = '#383d41';
+                } else if (status === 'Cancelado') {
+                    statusPill.style.backgroundColor = '#f8d7da';
+                    statusPill.style.color = '#721c24';
+                } else {
+                    statusPill.style.backgroundColor = '#cce5ff';
+                    statusPill.style.color = '#004085';
+                }
+            }
+
+            // Exibe botões de ação contextuais
+            if (actionsLeft) {
+                actionsLeft.style.display = (status !== 'Cancelado' && status !== 'Concluído') ? 'flex' : 'none';
+            }
+            if (btnRemarcar) {
+                btnRemarcar.style.display = (status !== 'Cancelado' && status !== 'Concluído') ? 'inline-block' : 'none';
+            }
+
+            if (saveBtn) {
+                saveBtn.innerText = 'Salvar Alterações';
+                saveBtn.disabled = false;
+            }
+            if (cancelBtn) cancelBtn.innerText = 'Fechar';
+
+            // Carrega pets e seleciona o correto
+            carregarPets(dados.clienteId, dados.petId);
+
+            appointmentModal.style.display = 'flex';
+        }
+
+        // Fechar Modal
+        function closeModal() {
+            appointmentModal.style.display = 'none';
+        }
+
+        // Botões de fechar
+        appointmentModal.querySelectorAll('.close-modal-btn').forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+
+        // Clique no fundo escuro para fechar
+        appointmentModal.addEventListener('click', function(e) {
+            if (e.target === appointmentModal) closeModal();
+        });
+
+        // Botão Novo Agendamento
         addAppointmentBtn.addEventListener('click', openModalNovo);
-        if(closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-        if(cancelBtn) cancelBtn.addEventListener('click', closeModal);
-        
-        // Clique no Card (Remarcar) - Delegação de Eventos
+
+        // Delegação de clique nos Cards de Agendamento
         if (calendarGrid) {
             calendarGrid.addEventListener('click', function(e) {
-                // Procura o card mais próximo do clique (pois pode clicar no texto dentro do card)
                 const card = e.target.closest('.appointment-card');
-                
-                // Se achou um card e ele NÃO é "remarcado" (transparente)
-                if (card && !card.classList.contains('status-remarcado')) {
-                    openModalRemarcar(card);
+                if (card) {
+                    openModalEditar(card);
                 }
             });
         }
 
-        // Buscar Pets ao trocar Cliente
-        if(clientSelect) {
-            clientSelect.addEventListener('change', function() {
-                const clienteId = this.value;
-                petSelect.innerHTML = '<option value="">Carregando...</option>';
-                petSelect.disabled = true;
+        // SALVAR (Novo ou Atualizar)
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                const appId = appIdInput ? appIdInput.value : '';
+                const payload = {
+                    id: appId || undefined,
+                    cliente_id: clientSelect ? clientSelect.value : '',
+                    pet_id: petSelect ? petSelect.value : '',
+                    servico: serviceSelect ? serviceSelect.value : '',
+                    date: dateInput ? dateInput.value : '',
+                    time: timeInput ? timeInput.value : '',
+                    profissional_id: profSelect ? profSelect.value : '0',
+                    observacoes: notesInput ? notesInput.value : ''
+                };
 
-                if (!clienteId) {
-                    petSelect.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
+                if (!payload.cliente_id || !payload.pet_id || !payload.servico || !payload.date || !payload.time) {
+                    alert('Por favor, preencha todos os campos obrigatórios (*).');
                     return;
                 }
 
-                fetch(`buscar_pets_cliente.php?cliente_id=${clienteId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.success && data.pets.length > 0) {
-                            petSelect.innerHTML = '<option value="">Selecione um pet...</option>';
-                            data.pets.forEach(pet => {
-                                const option = document.createElement('option');
-                                option.value = pet.id;
-                                option.textContent = pet.nome;
-                                petSelect.appendChild(option);
-                            });
-                            petSelect.disabled = false;
-                        } else {
-                            petSelect.innerHTML = '<option value="">Este cliente não tem pets</option>';
-                        }
-                    })
-                    .catch(err => { console.error(err); petSelect.innerHTML = '<option value="">Erro de conexão</option>'; });
+                saveBtn.disabled = true;
+                saveBtn.innerText = 'Salvando...';
+
+                fetch('salvar_agendamento.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(res => {
+                    alert(res.message);
+                    if (res.success) {
+                        closeModal();
+                        location.reload();
+                    } else {
+                        saveBtn.disabled = false;
+                        saveBtn.innerText = appId ? 'Salvar Alterações' : 'Salvar Agendamento';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Erro de comunicação com o servidor.');
+                    saveBtn.disabled = false;
+                    saveBtn.innerText = appId ? 'Salvar Alterações' : 'Salvar Agendamento';
+                });
             });
         }
 
-        // Salvar Agendamento
-        if(saveBtn) {
-            saveBtn.addEventListener('click', function() {
-                const dadosFormulario = {
-                    cliente_id: clientSelect.value,
-                    pet_id: petSelect.value,
-                    servico: document.getElementById('app-service').value,
-                    date: document.getElementById('app-date').value,
-                    time: document.getElementById('app-time').value,
-                    profissional: document.getElementById('app-professional').value,
-                    observacoes: document.getElementById('app-notes').value
+        // REMARCAR (Gera novo agendamento e marca anterior como Remarcado)
+        if (btnRemarcar) {
+            btnRemarcar.addEventListener('click', function() {
+                const appId = appIdInput ? appIdInput.value : '';
+                if (!appId) return;
+
+                const novosDados = {
+                    cliente_id: clientSelect ? clientSelect.value : '',
+                    pet_id: petSelect ? petSelect.value : '',
+                    servico: serviceSelect ? serviceSelect.value : '',
+                    date: dateInput ? dateInput.value : '',
+                    time: timeInput ? timeInput.value : '',
+                    profissional_id: profSelect ? profSelect.value : '0',
+                    observacoes: notesInput ? notesInput.value : ''
                 };
 
-                if (!dadosFormulario.cliente_id || !dadosFormulario.pet_id || !dadosFormulario.servico || !dadosFormulario.date || !dadosFormulario.time) {
-                    alert('Por favor, preencha os campos obrigatórios (Cliente, Pet, Serviço, Data, Hora).'); return;
+                if (!novosDados.date || !novosDados.time) {
+                    alert('Informe a nova data e o novo horário para remarcar.');
+                    return;
                 }
-                
-                let url = (modoModal === 'remarcar') ? 'remarcar_agendamento.php' : 'salvar_agendamento.php';
-                let body = (modoModal === 'remarcar') ? { id_antigo: idAgendamentoAntigo, novos_dados: dadosFormulario } : dadosFormulario;
 
-                fetch(url, {
+                if (!confirm(`Confirmar remarcação para ${novosDados.date} às ${novosDados.time}?`)) {
+                    return;
+                }
+
+                btnRemarcar.disabled = true;
+                btnRemarcar.innerText = 'Remarcando...';
+
+                fetch('remarcar_agendamento.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ id_antigo: appId, novos_dados: novosDados })
                 })
                 .then(res => res.json())
-                .then(result => {
-                    alert(result.message);
-                    if (result.success) { closeModal(); location.reload(); }
+                .then(res => {
+                    alert(res.message);
+                    if (res.success) {
+                        closeModal();
+                        location.reload();
+                    } else {
+                        btnRemarcar.disabled = false;
+                        btnRemarcar.innerHTML = '<i class="fas fa-calendar-alt"></i> Remarcar';
+                    }
                 })
-                .catch(err => { console.error(err); alert('Erro de comunicação.'); });
+                .catch(err => {
+                    console.error(err);
+                    alert('Erro ao remarcar agendamento.');
+                    btnRemarcar.disabled = false;
+                    btnRemarcar.innerHTML = '<i class="fas fa-calendar-alt"></i> Remarcar';
+                });
+            });
+        }
+
+        // CONCLUIR ATENDIMENTO
+        if (btnConcluir) {
+            btnConcluir.addEventListener('click', function() {
+                const appId = appIdInput ? appIdInput.value : '';
+                if (!appId) return;
+
+                if (!confirm('Deseja marcar este agendamento como CONCLUÍDO?')) return;
+
+                btnConcluir.disabled = true;
+
+                fetch('cancelar_agendamento.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: appId, status: 'Concluído' })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    alert(res.message);
+                    if (res.success) {
+                        closeModal();
+                        location.reload();
+                    } else {
+                        btnConcluir.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Erro de comunicação ao concluir agendamento.');
+                    btnConcluir.disabled = false;
+                });
+            });
+        }
+
+        // CANCELAR AGENDAMENTO
+        if (btnCancelar) {
+            btnCancelar.addEventListener('click', function() {
+                const appId = appIdInput ? appIdInput.value : '';
+                if (!appId) return;
+
+                if (!confirm('Tem certeza de que deseja CANCELAR este agendamento?')) return;
+
+                btnCancelar.disabled = true;
+
+                fetch('cancelar_agendamento.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: appId, status: 'Cancelado' })
+                })
+                .then(res => res.json())
+                .then(res => {
+                    alert(res.message);
+                    if (res.success) {
+                        closeModal();
+                        location.reload();
+                    } else {
+                        btnCancelar.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Erro de comunicação ao cancelar agendamento.');
+                    btnCancelar.disabled = false;
+                });
             });
         }
     } 
@@ -662,20 +861,63 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Finalizar Venda
-        btnFinalizar.addEventListener('click', function() {
-            if (carrinho.length === 0) { alert('Carrinho vazio!'); return; }
+        // --- ELEMENTOS DOS MODAIS DE FIDELIZAÇÃO E WHATSAPP ---
+        const modalFidelidadePdv = document.getElementById('modal-fidelidade-pdv');
+        const modalSucessoPdv = document.getElementById('modal-sucesso-pdv');
+        const pdvClienteSelect = document.getElementById('pdv-cliente');
+        const pdvFidWhatsapp = document.getElementById('pdv-fid-whatsapp');
+        const pdvFidNome = document.getElementById('pdv-fid-nome');
+        const pdvBoxNomeCliente = document.getElementById('pdv-box-nome-cliente');
+        const btnFecharModalFid = document.getElementById('btn-fechar-modal-fid');
+        const btnPdvRecusarFid = document.getElementById('btn-pdv-recusar-fid');
+        const btnPdvConfirmarFid = document.getElementById('btn-pdv-confirmar-fid');
+        const btnNovoAtendimento = document.getElementById('btn-novo-atendimento');
+        const btnPrintCupomSucesso = document.getElementById('btn-print-cupom-sucesso');
 
-            const originalText = this.innerHTML;
-            this.disabled = true;
-            this.innerHTML = 'Processando...';
+        // Máscara de Telefone WhatsApp: (00) 00000-0000
+        if (pdvFidWhatsapp) {
+            pdvFidWhatsapp.addEventListener('input', function(e) {
+                let v = e.target.value.replace(/\D/g, '');
+                if (v.length > 11) v = v.substring(0, 11);
+                if (v.length > 10) {
+                    v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+                } else if (v.length > 5) {
+                    v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, '($1) $2-$3');
+                } else if (v.length > 2) {
+                    v = v.replace(/^(\d{2})(\d{0,5})$/, '($1) $2');
+                } else if (v.length > 0) {
+                    v = v.replace(/^(\d*)$/, '($1');
+                }
+                e.target.value = v;
+            });
+        }
 
+        // Atualiza WhatsApp automaticamente quando o operador troca o cliente no select
+        if (pdvClienteSelect && pdvFidWhatsapp) {
+            pdvClienteSelect.addEventListener('change', function() {
+                const opt = this.selectedOptions[0];
+                if (opt && opt.dataset.telefone) {
+                    pdvFidWhatsapp.value = opt.dataset.telefone;
+                }
+            });
+        }
+
+        // Executa a finalização da venda enviando os dados para salvar_venda.php
+        function executarFinalizacaoVenda(participarFidelidade, whatsappCliente, nomeCliente) {
+            const originalText = btnFinalizar.innerHTML;
+            btnFinalizar.disabled = true;
+            btnFinalizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+            const totalVendaFinal = totalGlobal;
             const dados = {
-                cliente_id: document.getElementById('pdv-cliente').value || null,
-                total_venda: totalGlobal,
+                cliente_id: pdvClienteSelect.value || null,
+                total_venda: totalVendaFinal,
                 desconto: parseFloat(descontoInput.value) || 0,
                 forma_pagamento: document.getElementById('forma-pagamento').value,
-                itens: carrinho
+                itens: carrinho,
+                participar_fidelidade: participarFidelidade ? 1 : 0,
+                cliente_whatsapp: whatsappCliente || '',
+                cliente_nome: nomeCliente || ''
             };
 
             fetch('salvar_venda.php', {
@@ -686,21 +928,173 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(res => {
                 if (res.success) {
-                    alert('Venda realizada!');
+                    // Limpa carrinho da tela
                     carrinho = [];
                     descontoInput.value = "0.00";
                     atualizarInterface();
-                    document.getElementById('pdv-cliente').value = "";
+
+                    // Se participou de fidelidade e gerou dados de WhatsApp
+                    if (res.fidelidade && res.fidelidade.participou) {
+                        const fid = res.fidelidade;
+                        document.getElementById('sucesso-venda-num').textContent = res.venda_id;
+                        document.getElementById('sucesso-venda-total').textContent = 'R$ ' + totalVendaFinal.toFixed(2);
+                        document.getElementById('sucesso-cli-nome').textContent = fid.cliente_nome;
+                        document.getElementById('sucesso-cli-progresso').textContent = fid.selos_atuais + ' de ' + fid.meta_selos + ' selos';
+                        
+                        const badgeSelos = document.getElementById('sucesso-badge-selos');
+                        if (fid.recompensa_desbloqueada) {
+                            badgeSelos.textContent = '🎉 DESCONTO LIBERADO!';
+                            badgeSelos.style.background = '#dcfce7';
+                            badgeSelos.style.color = '#15803d';
+                        } else {
+                            badgeSelos.textContent = '+1 Selo Acumulado';
+                            badgeSelos.style.background = '#fef3c7';
+                            badgeSelos.style.color = '#b45309';
+                        }
+
+                        // Configura botão do WhatsApp
+                        const btnWhats = document.getElementById('btn-enviar-whatsapp-sucesso');
+                        const boxWhats = document.getElementById('sucesso-box-whatsapp');
+                        if (fid.whatsapp_url) {
+                            btnWhats.href = fid.whatsapp_url;
+                            boxWhats.style.display = 'block';
+                        } else {
+                            boxWhats.style.display = 'none';
+                        }
+
+                        // Configura link do cartão virtual
+                        const btnCartao = document.getElementById('btn-ver-cartao-sucesso');
+                        if (fid.cartao_url) {
+                            btnCartao.href = fid.cartao_url;
+                            btnCartao.style.display = 'inline-flex';
+                        } else {
+                            btnCartao.style.display = 'none';
+                        }
+
+                        document.getElementById('sucesso-box-fidelidade').style.display = 'block';
+                        modalSucessoPdv.style.display = 'flex';
+                    } else {
+                        // Venda comum sem fidelidade
+                        document.getElementById('sucesso-venda-num').textContent = res.venda_id;
+                        document.getElementById('sucesso-venda-total').textContent = 'R$ ' + totalVendaFinal.toFixed(2);
+                        document.getElementById('sucesso-box-fidelidade').style.display = 'none';
+                        document.getElementById('sucesso-box-whatsapp').style.display = 'none';
+                        document.getElementById('btn-ver-cartao-sucesso').style.display = 'none';
+                        modalSucessoPdv.style.display = 'flex';
+                    }
+
+                    pdvClienteSelect.value = "";
                 } else {
-                    alert('Erro: ' + res.message);
+                    alert('Erro ao finalizar venda: ' + res.message);
                 }
             })
-            .catch(err => alert('Erro de conexão.'))
+            .catch(err => {
+                console.error(err);
+                alert('Erro de conexão ao salvar venda.');
+            })
             .finally(() => {
-                this.disabled = false;
-                this.innerHTML = originalText;
+                btnFinalizar.disabled = false;
+                btnFinalizar.innerHTML = originalText;
+            });
+        }
+
+        // Finalizar Venda com Checagem Automática de Fidelidade
+        btnFinalizar.addEventListener('click', function() {
+            if (carrinho.length === 0) { alert('Carrinho vazio!'); return; }
+
+            const opt = pdvClienteSelect.selectedOptions[0];
+            const clienteId = pdvClienteSelect.value || null;
+
+            // Pré-preenche WhatsApp se o cliente já tiver cadastrado
+            if (pdvFidWhatsapp) {
+                pdvFidWhatsapp.value = (opt && opt.dataset.telefone) ? opt.dataset.telefone : '';
+            }
+            if (pdvBoxNomeCliente && pdvFidNome) {
+                if (!clienteId) {
+                    pdvBoxNomeCliente.style.display = 'block';
+                    pdvFidNome.value = '';
+                } else {
+                    pdvBoxNomeCliente.style.display = 'none';
+                    pdvFidNome.value = opt ? (opt.dataset.nome || '') : '';
+                }
+            }
+
+            // Verifica se o carrinho é elegível para fidelidade
+            fetch('api_fidelidade.php?acao=verificar_regras_carrinho', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    itens: carrinho,
+                    cliente_id: clienteId,
+                    total_venda: totalGlobal
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.elegivel && data.regras && data.regras.length > 0 && modalFidelidadePdv) {
+                    // Mostra o modal na tela do operador de caixa!
+                    const regra = data.regras[0];
+                    const nomeRegraEl = document.getElementById('pdv-fid-nome-regra');
+                    const beneficioEl = document.getElementById('pdv-fid-beneficio');
+                    const badgeMetaEl = document.getElementById('pdv-fid-badge-meta');
+                    const bannerEl = document.getElementById('pdv-fid-banner');
+
+                    if (nomeRegraEl) nomeRegraEl.textContent = regra.nome_regra || 'Cartão Fidelidade Pet VIP';
+                    if (beneficioEl) beneficioEl.textContent = regra.beneficio ? ('Acumule selos e ganhe: ' + regra.beneficio) : 'Ganhe selos especiais nesta compra!';
+                    if (badgeMetaEl) badgeMetaEl.textContent = '+' + (regra.meta ? ('1 de ' + regra.meta + ' selos') : '1 Selo VIP');
+                    if (bannerEl && regra.cor_hex) {
+                        bannerEl.style.background = `linear-gradient(135deg, ${regra.cor_hex}, ${regra.cor_secundaria || '#2c3e50'})`;
+                    }
+
+                    modalFidelidadePdv.style.display = 'flex';
+                } else {
+                    // Não tem regra ativa aplicável, finaliza direto
+                    executarFinalizacaoVenda(false, '', '');
+                }
+            })
+            .catch(err => {
+                // Se falhar a verificação, finaliza sem travar o operador de caixa
+                console.warn('Erro ao verificar fidelidade:', err);
+                executarFinalizacaoVenda(false, '', '');
             });
         });
+
+        // Eventos dos botões do Modal de Fidelidade
+        if (btnPdvConfirmarFid && modalFidelidadePdv) {
+            btnPdvConfirmarFid.addEventListener('click', function() {
+                const whats = pdvFidWhatsapp ? pdvFidWhatsapp.value.trim() : '';
+                const nome = pdvFidNome ? pdvFidNome.value.trim() : '';
+                modalFidelidadePdv.style.display = 'none';
+                executarFinalizacaoVenda(true, whats, nome);
+            });
+        }
+
+        if (btnPdvRecusarFid && modalFidelidadePdv) {
+            btnPdvRecusarFid.addEventListener('click', function() {
+                modalFidelidadePdv.style.display = 'none';
+                executarFinalizacaoVenda(false, '', '');
+            });
+        }
+
+        if (btnFecharModalFid && modalFidelidadePdv) {
+            btnFecharModalFid.addEventListener('click', function() {
+                modalFidelidadePdv.style.display = 'none';
+            });
+        }
+
+        // Eventos do Modal de Sucesso
+        if (btnNovoAtendimento && modalSucessoPdv) {
+            btnNovoAtendimento.addEventListener('click', function() {
+                modalSucessoPdv.style.display = 'none';
+                if (pdvSearchInput) pdvSearchInput.focus();
+            });
+        }
+
+        if (btnPrintCupomSucesso) {
+            btnPrintCupomSucesso.addEventListener('click', function() {
+                window.print();
+            });
+        }
 
         // --- LÓGICA DE FECHAMENTO DE CAIXA ---
         if (btnFecharCaixa && closureModal) {

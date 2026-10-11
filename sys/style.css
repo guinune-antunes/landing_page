@@ -242,6 +242,35 @@ body {
 .btn-icon.btn-delete { color: var(--color-danger); }
 .btn-icon:hover { opacity: 0.7; }
 
+.btn-danger {
+    background-color: var(--color-danger);
+    color: #fff;
+}
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+.btn-success {
+    background-color: var(--color-success);
+    color: #fff;
+}
+.btn-success:hover {
+    background-color: #27ae60;
+}
+
+.btn-warning {
+    background-color: var(--color-warning);
+    color: #2c3e50;
+}
+.btn-warning:hover {
+    background-color: #f39c12;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.82rem;
+}
+
 /* --- B: Cabeçalho de Página (Título + Controles) --- */
 .page-header {
     display: flex;
@@ -551,6 +580,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     height: 70vh; /* Altura fixa para o container */
+    overflow-y: auto;
 }
 
 .time-column {
@@ -657,6 +687,14 @@ body {
 .appointment-card.status-remarcado small {
     color: #6c757d;
 }
+
+/* Status Concluído */
+.appointment-card.status-concluido {
+    background-color: #27ae60;
+    border-left: 3px solid #1e8449;
+    color: #ffffff;
+}
+
 
 
 /* --- PÁGINA: CLIENTES --- */
@@ -900,3 +938,14 @@ body {
     .pdv-left-panel { height: 500px; }
     .pdv-right-panel { height: auto; }
 }
+
+@keyframes slideUpModal {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
