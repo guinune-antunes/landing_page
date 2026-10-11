@@ -23,6 +23,10 @@ if ($id_loja <= 0) {
     exit;
 }
 
+require_once __DIR__ . '/includes/unidades.php';
+$id_loja_fid = obterInstituicaoFidelidade($pdo, $id_loja);
+$ids_clientes = obterInstituicoesClientes($pdo, $id_loja);
+
 $rawInput = file_get_contents('php://input');
 $inputData = json_decode($rawInput, true) ?: [];
 
@@ -54,7 +58,7 @@ try {
                 WHERE r.instituicao_id = ?
                 ORDER BY r.ativo DESC, r.id DESC";
         $st = $pdo->prepare($sql);
-        $st->execute([$id_loja]);
+        $st->execute([$id_loja_fid]);
         $regras = $st->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode(['success' => true, 'regras' => $regras]);
@@ -106,7 +110,7 @@ try {
                 $condicao_tipo, $condicao_valor, $dias_semana_ativos, $recompensa_tipo,
                 $recompensa_valor, $recompensa_item_id, $limite_desconto,
                 $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo,
-                $regra_id, $id_loja
+                $regra_id, $id_loja_fid
             ]);
             $msg = 'Regra de fidelidade atualizada com sucesso!';
         } else {
@@ -117,7 +121,7 @@ try {
                  cor_hex, cor_secundaria, icone, texto_cartao, ativo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
-                $id_loja, $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id,
+                $id_loja_fid, $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id,
                 $condicao_tipo, $condicao_valor, $dias_semana_ativos, $recompensa_tipo,
                 $recompensa_valor, $recompensa_item_id, $limite_desconto,
                 $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo
@@ -134,8 +138,8 @@ try {
     if ($acao === 'excluir_regra') {
         $params = !empty($inputData) ? $inputData : $_POST;
         $regra_id = intval($params['id'] ?? 0);
-        $pdo->prepare("DELETE FROM cliente_progresso_regras WHERE regra_id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja]);
-        $pdo->prepare("DELETE FROM fidelidade_regras WHERE id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja]);
+        $pdo->prepare("DELETE FROM cliente_progresso_regras WHERE regra_id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja_fid]);
+        $pdo->prepare("DELETE FROM fidelidade_regras WHERE id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja_fid]);
         echo json_encode(['success' => true, 'message' => 'Regra removida com sucesso!']);
         exit;
     }
@@ -144,7 +148,7 @@ try {
     if ($acao === 'toggle_regra') {
         $params = !empty($inputData) ? $inputData : $_POST;
         $regra_id = intval($params['id'] ?? 0);
-        $pdo->prepare("UPDATE fidelidade_regras SET ativo = 1 - ativo WHERE id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja]);
+        $pdo->prepare("UPDATE fidelidade_regras SET ativo = 1 - ativo WHERE id = ? AND instituicao_id = ?")->execute([$regra_id, $id_loja_fid]);
         echo json_encode(['success' => true, 'message' => 'Status da regra alterado!']);
         exit;
     }
@@ -156,9 +160,11 @@ try {
         $cliente_id = !empty($params['cliente_id']) ? intval($params['cliente_id']) : null;
         $total_venda = floatval($params['total_venda'] ?? 0);
 
+        $in_cli = implode(',', array_map('intval', $ids_clientes));
+
         // Busca regras modulares ativas
         $stR = $pdo->prepare("SELECT * FROM fidelidade_regras WHERE instituicao_id = ? AND ativo = 1 ORDER BY id ASC");
-        $stR->execute([$id_loja]);
+        $stR->execute([$id_loja_fid]);
         $regras = $stR->fetchAll(PDO::FETCH_ASSOC);
 
         $diasMap = ['Sun'=>'dom', 'Mon'=>'seg', 'Tue'=>'ter', 'Wed'=>'qua', 'Thu'=>'qui', 'Fri'=>'sex', 'Sat'=>'sab'];
@@ -168,8 +174,8 @@ try {
         $aniversario_este_mes = false;
         $cliente_info = null;
         if ($cliente_id > 0) {
-            $stC = $pdo->prepare("SELECT id, nome_completo, telefone, data_nascimento FROM clientes WHERE id = ? AND instituicao_id = ?");
-            $stC->execute([$cliente_id, $id_loja]);
+            $stC = $pdo->prepare("SELECT id, nome_completo, telefone, data_nascimento FROM clientes WHERE id = ? AND instituicao_id IN ($in_cli)");
+            $stC->execute([$cliente_id]);
             $cliente_info = $stC->fetch(PDO::FETCH_ASSOC);
             if ($cliente_info && !empty($cliente_info['data_nascimento'])) {
                 $mesNasc = date('m', strtotime($cliente_info['data_nascimento']));
@@ -255,7 +261,7 @@ try {
         // Se não houver regra modular customizada, verifica a config de fidelidade padrão
         if (empty($regras_elegiveis)) {
             $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
-            $stCfg->execute([$id_loja]);
+            $stCfg->execute([$id_loja_fid]);
             $cfg = $stCfg->fetch(PDO::FETCH_ASSOC);
 
             if ($cfg && count($itens) > 0) {
@@ -354,7 +360,7 @@ try {
 
         // Verifica se já existe registro para a instituição
         $existe = $pdo->prepare("SELECT id, logo_cartao FROM fidelidade_config WHERE instituicao_id = ?");
-        $existe->execute([$id_loja]);
+        $existe->execute([$id_loja_fid]);
         $row = $existe->fetch(PDO::FETCH_ASSOC);
 
         if ($row) {
@@ -374,7 +380,7 @@ try {
                 $limite_desconto_recompensa, $reais_por_ponto, $cashback_percentual, $validade_meses,
                 $notificar_expiracao, $dias_aviso_expiracao, $notificar_whatsapp, $notificar_email,
                 $cor_cartao_hex, $cor_cartao_secundaria, $estilo_cartao, $logo_cartao, $texto_cartao,
-                $regras_aceleradores, $tiers_config, $id_loja
+                $regras_aceleradores, $tiers_config, $id_loja_fid
             ]);
         } else {
             $sql = "INSERT INTO fidelidade_config 
@@ -386,7 +392,7 @@ try {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
-                $id_loja, $tipo_programa, $compras_para_recompensa, $recompensa_tipo, $recompensa_valor,
+                $id_loja_fid, $tipo_programa, $compras_para_recompensa, $recompensa_tipo, $recompensa_valor,
                 $limite_desconto_recompensa, $reais_por_ponto, $cashback_percentual, $validade_meses,
                 $notificar_expiracao, $dias_aviso_expiracao, $notificar_whatsapp, $notificar_email,
                 $cor_cartao_hex, $cor_cartao_secundaria, $estilo_cartao, $logo_cartao, $texto_cartao,
@@ -519,23 +525,23 @@ try {
             exit;
         }
 
-        // Pega as configs da loja
+        // Pega as configs da loja (ou da matriz da rede se compartilhado)
         $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
-        $stCfg->execute([$id_loja]);
+        $stCfg->execute([$id_loja_fid]);
         $cfg = $stCfg->fetch(PDO::FETCH_ASSOC) ?: [
             'compras_para_recompensa' => 10,
             'recompensa_valor' => 15,
             'recompensa_tipo' => 'desconto_percentual'
         ];
 
-        // Garante registro do cliente
+        // Garante registro do cliente na fidelidade
         $stCli = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE instituicao_id = ? AND cliente_id = ?");
-        $stCli->execute([$id_loja, $cliente_id]);
+        $stCli->execute([$id_loja_fid, $cliente_id]);
         $cliFid = $stCli->fetch(PDO::FETCH_ASSOC);
 
         if (!$cliFid) {
             $pdo->prepare("INSERT INTO cliente_fidelidade (instituicao_id, cliente_id, selos_atuais) VALUES (?, ?, 0)")
-                ->execute([$id_loja, $cliente_id]);
+                ->execute([$id_loja_fid, $cliente_id]);
             $selos_atuais = 0;
             $ciclos = 0;
             $total_gasto = 0;
@@ -556,11 +562,11 @@ try {
 
         // Atualiza cliente
         $pdo->prepare("UPDATE cliente_fidelidade SET selos_atuais = ?, total_gasto_historico = ?, ultimo_acesso = NOW() WHERE instituicao_id = ? AND cliente_id = ?")
-            ->execute([$novos_selos, $novo_total_gasto, $id_loja, $cliente_id]);
+            ->execute([$novos_selos, $novo_total_gasto, $id_loja_fid, $cliente_id]);
 
         // Grava auditoria
         $pdo->prepare("INSERT INTO fidelidade_transacoes (instituicao_id, cliente_id, tipo, quantidade, descricao, usuario_operador) VALUES (?, ?, 'acumulo_selo', 1, ?, ?)")
-            ->execute([$id_loja, $cliente_id, "Selo #$novos_selos de $max_selos adicionado (Compra R$ " . number_format($valor_compra, 2, ',', '.') . ")", $operador]);
+            ->execute([$id_loja_fid, $cliente_id, "Selo #$novos_selos de $max_selos adicionado (Compra R$ " . number_format($valor_compra, 2, ',', '.') . ")", $operador]);
 
         echo json_encode([
             'success' => true,
@@ -581,11 +587,11 @@ try {
         $operador = $_SESSION['usuario_nome'] ?? 'Atendente';
 
         $stCli = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE instituicao_id = ? AND cliente_id = ?");
-        $stCli->execute([$id_loja, $cliente_id]);
+        $stCli->execute([$id_loja_fid, $cliente_id]);
         $cliFid = $stCli->fetch(PDO::FETCH_ASSOC);
 
         $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
-        $stCfg->execute([$id_loja]);
+        $stCfg->execute([$id_loja_fid]);
         $cfg = $stCfg->fetch(PDO::FETCH_ASSOC) ?: ['compras_para_recompensa' => 10, 'recompensa_valor' => 15];
 
         $meta = (int)($cfg['compras_para_recompensa'] ?? 10);
@@ -601,11 +607,11 @@ try {
         $novos_ciclos = ((int)($cliFid['ciclos_completados'] ?? 0)) + 1;
 
         $pdo->prepare("UPDATE cliente_fidelidade SET selos_atuais = ?, ciclos_completados = ?, ultimo_acesso = NOW() WHERE instituicao_id = ? AND cliente_id = ?")
-            ->execute([$sobra, $novos_ciclos, $id_loja, $cliente_id]);
+            ->execute([$sobra, $novos_ciclos, $id_loja_fid, $cliente_id]);
 
         $valDesc = floatval($cfg['recompensa_valor'] ?? 15);
         $pdo->prepare("INSERT INTO fidelidade_transacoes (instituicao_id, cliente_id, tipo, quantidade, valor_recompensa, descricao, usuario_operador) VALUES (?, ?, 'resgate_recompensa', ?, ?, ?, ?)")
-            ->execute([$id_loja, $cliente_id, $meta, $valDesc, "Resgate do Cartão Fidelidade ($meta compras completadas) - Desconto aplicado no caixa", $operador]);
+            ->execute([$id_loja_fid, $cliente_id, $meta, $valDesc, "Resgate do Cartão Fidelidade ($meta compras completadas) - Desconto aplicado no caixa", $operador]);
 
         echo json_encode([
             'success' => true,
@@ -625,17 +631,18 @@ try {
             exit;
         }
 
+        $in_cli = implode(',', array_map('intval', $ids_clientes));
         $sql = "SELECT c.id, c.nome_completo, c.telefone, c.cpf, 
                        COALESCE(cf.selos_atuais, 0) as selos,
                        COALESCE(cf.pontos_acumulados, 0) as pontos,
                        COALESCE(cf.tier_atual, 'Bronze') as tier
                 FROM clientes c
-                LEFT JOIN cliente_fidelidade cf ON cf.cliente_id = c.id AND cf.instituicao_id = c.instituicao_id
-                WHERE c.instituicao_id = ? AND (c.nome_completo LIKE ? OR c.cpf LIKE ? OR c.telefone LIKE ?)
+                LEFT JOIN cliente_fidelidade cf ON cf.cliente_id = c.id AND cf.instituicao_id = ?
+                WHERE c.instituicao_id IN ($in_cli) AND (c.nome_completo LIKE ? OR c.cpf LIKE ? OR c.telefone LIKE ?)
                 ORDER BY c.nome_completo ASC LIMIT 10";
         $st = $pdo->prepare($sql);
         $like = "%$termo%";
-        $st->execute([$id_loja, $like, $like, $like]);
+        $st->execute([$id_loja_fid, $like, $like, $like]);
         $clientes = $st->fetchAll(PDO::FETCH_ASSOC);
 
         echo json_encode(['success' => true, 'clientes' => $clientes]);

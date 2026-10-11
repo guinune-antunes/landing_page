@@ -2,6 +2,7 @@
 ob_start();
 session_start();
 require 'conexao.php';
+require_once __DIR__ . '/includes/unidades.php';
 
 $email = filter_input(INPUT_POST, 'email', FILTER_SANITIZE_EMAIL);
 $senha_digitada = $_POST['senha'] ?? '';
@@ -19,17 +20,22 @@ try {
 
         if ($usuario && password_verify($senha_digitada, $usuario['senha_hash'])) {
 
-            // Instituição bloqueada pelo Admin do SaaS
-            if (!empty($usuario['instituicao_id']) && (int)$usuario['instituicao_ativa'] === 0) {
-                header("Location: login.php?erro=bloqueado");
-                exit;
-            }
-            
             // Salva os dados vitais na sessão
             $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['usuario_nome'] = $usuario['nome'];
             $_SESSION['usuario_cargo'] = $usuario['cargo'];
             $_SESSION['instituicao_id'] = $usuario['instituicao_id'];
+
+            // Multi-unidade: resolve as unidades permitidas (origem + vínculos + rede)
+            // e define a unidade ativa. Instituição bloqueada pelo Admin do SaaS só
+            // impede o login se NÃO restar nenhuma unidade ativa para o usuário.
+            if (!empty($usuario['instituicao_id'])) {
+                if (!definirContextoUnidades($pdo, (int)$usuario['id'], (int)$usuario['instituicao_id'])) {
+                    session_unset();
+                    header("Location: login.php?erro=bloqueado");
+                    exit;
+                }
+            }
 
             // === 2. TRAVA DE SEGURANÇA: TROCA DE SENHA OBRIGATÓRIA ===
             // Se o gerente resetou a senha, intercepta o login aqui e bloqueia

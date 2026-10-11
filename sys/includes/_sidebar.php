@@ -83,6 +83,12 @@ if (!function_exists('temPermissao')) {
                 <i class="fas fa-tachometer-alt"></i> Dashboard
             </a>
 
+            <?php if ($cargo === 'Gerente' && count($_SESSION['unidades_permitidas'] ?? []) > 1): ?>
+                <a href="dashboard_rede.php" class="nav-item <?php echo ($paginaAtiva === 'rede') ? 'active' : ''; ?>">
+                    <i class="fas fa-network-wired"></i> Visão da Rede
+                </a>
+            <?php endif; ?>
+
             <?php if (temPermissao('agenda', $permissoes, $cargo, $modulos_instituicao)): ?>
                 <a href="agenda.php" class="nav-item <?php echo ($paginaAtiva === 'agenda') ? 'active' : ''; ?>">
                     <i class="fas fa-calendar-alt"></i> Agenda
@@ -135,6 +141,11 @@ if (!function_exists('temPermissao')) {
                     <a href="produtos.php" class="nav-item <?php echo ($paginaAtiva === 'produtos') ? 'active' : ''; ?>">
                         <i class="fas fa-box-open"></i> Produtos
                     </a>
+                    <?php if (count($_SESSION['unidades_permitidas'] ?? []) > 1): ?>
+                        <a href="transferencia_estoque.php" class="nav-item <?php echo ($paginaAtiva === 'transferencia') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem;">
+                            <i class="fas fa-exchange-alt"></i> Transferir Estoque
+                        </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <a href="#" class="nav-item">

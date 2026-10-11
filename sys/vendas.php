@@ -11,10 +11,14 @@ if (!$id_loja) {
     die("Sessão expirada. Faça login novamente.");
 }
 
-// Busca os clientes da loja para o Select do PDV
-$sql_clientes = "SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id = ? ORDER BY nome_completo ASC";
+require_once __DIR__ . '/includes/unidades.php';
+
+// Busca os clientes da loja (ou da rede se compartilhado) para o Select do PDV
+$ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+$in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+$sql_clientes = "SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id IN ($in_cli) ORDER BY nome_completo ASC";
 $stmt_clientes = $pdo->prepare($sql_clientes);
-$stmt_clientes->execute([$id_loja]);
+$stmt_clientes->execute($ids_clientes);
 $clientes = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
 
 // =========================================================================

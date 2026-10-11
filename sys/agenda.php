@@ -43,9 +43,12 @@ $displayRange = date('d M', strtotime($inicioSemana)) . ' - ' . date('d M, Y', s
 
 // --- 3. BUSCAS NO BANCO DE DADOS (FILTRADAS PELA LOJA) ---
 
-// Busca Clientes
-$stmt_clientes = $pdo->prepare("SELECT id, nome_completo FROM clientes WHERE instituicao_id = ? ORDER BY nome_completo");
-$stmt_clientes->execute([$id_loja]);
+// Busca Clientes (inclui clientes da rede se compartilhado)
+require_once __DIR__ . '/includes/unidades.php';
+$ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+$in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+$stmt_clientes = $pdo->prepare("SELECT id, nome_completo FROM clientes WHERE instituicao_id IN ($in_cli) ORDER BY nome_completo");
+$stmt_clientes->execute($ids_clientes);
 $clientes = $stmt_clientes->fetchAll();
 
 // Busca Profissionais

@@ -213,15 +213,20 @@ try {
                 </div>
             </form>
             
-            <h4 style="margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #e74c3c;">Segurança</h4>
-            <div style="background: #fdf2f0; border-radius: 8px; padding: 10px; border: 1px solid #fadbd8; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>Reset de Senha</strong>
-                    <div style="font-size: 0.8rem; color: #666;">Gera uma senha provisória para este usuário.</div>
+            <h4 style="margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #e74c3c;">Segurança & Senha</h4>
+            <div style="background: #fdf2f0; border-radius: 8px; padding: 12px; border: 1px solid #fadbd8;">
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <label style="font-size: 0.85rem; font-weight: 600;">Definir Nova Senha</label>
+                    <input type="password" id="edit-user-nova-senha" placeholder="Deixe em branco para manter a atual" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px;">
                 </div>
-                <button type="button" id="btn-reset-senha" class="btn" style="background: #e74c3c; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer;">
-                    Gerar Nova Senha
-                </button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                    <button type="button" id="btn-gerar-senha-membro" class="btn btn-sm" style="background: #fff; color: #c0392b; border: 1px solid #e74c3c; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;">
+                        <i class="fas fa-magic"></i> Gerar Senha Segura
+                    </button>
+                    <button type="button" id="btn-reset-senha" class="btn btn-sm" style="background: #e74c3c; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer;">
+                        <i class="fas fa-key"></i> Reset Imediato
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -351,18 +356,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 if(isGerente) document.getElementById(checkId).checked = true;
             });
 
+            const inputNovaSenha = document.getElementById('edit-user-nova-senha');
+            if(inputNovaSenha) {
+                inputNovaSenha.value = '';
+                inputNovaSenha.type = 'password';
+            }
+
             editModal.style.display = 'flex';
         });
     });
+
+    const btnGerarMembro = document.getElementById('btn-gerar-senha-membro');
+    if (btnGerarMembro) {
+        btnGerarMembro.addEventListener('click', function() {
+            const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#';
+            let g = '';
+            for (let i = 0; i < 8; i++) g += chars.charAt(Math.floor(Math.random() * chars.length));
+            const inp = document.getElementById('edit-user-nova-senha');
+            inp.value = g;
+            inp.type = 'text';
+            alert('Senha gerada: ' + g + '\n\nClique em "Salvar Alterações" para aplicar a nova senha.');
+        });
+    }
 
     document.querySelectorAll('.close-edit-btn').forEach(btn => {
         btn.addEventListener('click', () => editModal.style.display = 'none');
     });
 
     btnUpdate.addEventListener('click', function() {
+        const novaSenhaVal = document.getElementById('edit-user-nova-senha') ? document.getElementById('edit-user-nova-senha').value.trim() : '';
+
         const data = {
             id: document.getElementById('edit-user-id').value,
             cargo: document.getElementById('edit-user-cargo').value,
+            senha: novaSenhaVal,
             permissoes: {
                 clientes: document.getElementById('edit-perm-clientes').checked,
                 agenda: document.getElementById('edit-perm-agenda').checked,

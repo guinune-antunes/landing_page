@@ -18,14 +18,22 @@ require 'includes/verifica_login.php'; // Garante que está logado
 
 // --- LÓGICA DE BUSCA DE DADOS (FILTRADA POR INSTITUIÇÃO) ---
 require 'conexao.php'; // Usa $pdo
+require_once 'includes/unidades.php';
 
 // 1. Pega o ID da instituição da sessão do usuário
-$instituicao_id = $_SESSION['instituicao_id'];
+$instituicao_id = (int)$_SESSION['instituicao_id'];
 
-// 2. Busca APENAS os clientes desta instituição
-$sql = "SELECT * FROM clientes WHERE instituicao_id = ? ORDER BY nome_completo";
+// 2. Busca clientes da instituição e das demais unidades se compartilhar_clientes = 1
+$ids_clientes = obterInstituicoesClientes($pdo, $instituicao_id);
+$in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+
+$sql = "SELECT c.*, i.nome_unidade, i.nome_fantasia, i.cidade, i.uf 
+        FROM clientes c
+        LEFT JOIN instituicoes i ON i.id = c.instituicao_id
+        WHERE c.instituicao_id IN ($in_cli) 
+        ORDER BY c.nome_completo";
 $stmt_clientes = $pdo->prepare($sql);
-$stmt_clientes->execute([$instituicao_id]);
+$stmt_clientes->execute($ids_clientes);
 $clientes = $stmt_clientes->fetchAll();
 ?>
 
@@ -63,7 +71,17 @@ $clientes = $stmt_clientes->fetchAll();
                         <?php if (count($clientes) > 0): ?>
                             <?php foreach ($clientes as $cliente): ?>
                                 <tr data-id="<?php echo $cliente['id']; ?>">
-                                    <td><?php echo htmlspecialchars($cliente['nome_completo']); ?></td>
+                                    <td>
+                                        <strong><?php echo htmlspecialchars($cliente['nome_completo']); ?></strong>
+                                        <?php if (count($ids_clientes) > 1): 
+                                            $unidadeBadge = trim(($cliente['nome_unidade'] ?? '') ?: ($cliente['cidade'] ?? ''));
+                                            if ($unidadeBadge !== ''):
+                                        ?>
+                                            <span style="background: #eef2f7; color: #4a5568; font-size: 0.75rem; padding: 2px 7px; border-radius: 4px; margin-left: 6px; font-weight: normal;">
+                                                <i class="fas fa-store"></i> <?php echo htmlspecialchars($unidadeBadge); ?>
+                                            </span>
+                                        <?php endif; endif; ?>
+                                    </td>
                                     <td><?php echo htmlspecialchars($cliente['telefone']); ?></td>
                                     <td><?php echo htmlspecialchars($cliente['email']); ?></td>
                                     <td>

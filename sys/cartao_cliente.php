@@ -1,5 +1,6 @@
 <?php
 require 'conexao.php';
+require_once __DIR__ . '/includes/unidades.php';
 
 $cliente_id = intval($_GET['cliente_id'] ?? 0);
 $loja_id = intval($_GET['loja_id'] ?? 0);
@@ -14,6 +15,8 @@ if ($loja_id <= 0) {
     $loja_id = (int)$pdo->query("SELECT id FROM instituicoes ORDER BY id ASC LIMIT 1")->fetchColumn() ?: 1;
 }
 
+$loja_fid_id = obterInstituicaoFidelidade($pdo, $loja_id);
+
 // Busca a loja
 $stLoja = $pdo->prepare("SELECT * FROM instituicoes WHERE id = ?");
 $stLoja->execute([$loja_id]);
@@ -21,7 +24,7 @@ $loja = $stLoja->fetch(PDO::FETCH_ASSOC) ?: ['nome_fantasia' => 'Pet Shop', 'cnp
 
 // Busca configuração da fidelidade
 $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
-$stCfg->execute([$loja_id]);
+$stCfg->execute([$loja_fid_id]);
 $cfg = $stCfg->fetch(PDO::FETCH_ASSOC);
 
 if (!$cfg) {
@@ -43,8 +46,11 @@ $cliente = null;
 $fid = ['selos_atuais' => 4, 'ciclos_completados' => 1, 'pontos_acumulados' => 120, 'tier_atual' => 'Prata'];
 
 if ($cliente_id > 0) {
-    $stCli = $pdo->prepare("SELECT * FROM clientes WHERE id = ? AND instituicao_id = ?");
-    $stCli->execute([$cliente_id, $loja_id]);
+    $ids_clientes = obterInstituicoesClientes($pdo, $loja_id);
+    $in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+
+    $stCli = $pdo->prepare("SELECT * FROM clientes WHERE id = ? AND instituicao_id IN ($in_cli)");
+    $stCli->execute([$cliente_id, ...$ids_clientes]);
     $cliente = $stCli->fetch(PDO::FETCH_ASSOC);
 
     if ($cliente) {
@@ -54,7 +60,7 @@ if ($cliente_id > 0) {
                                        JOIN fidelidade_regras r ON cpr.regra_id = r.id
                                        WHERE cpr.cliente_id = ? AND r.instituicao_id = ? AND r.ativo = 1
                                        ORDER BY cpr.ultimo_uso DESC LIMIT 1");
-        $stRegraAtiva->execute([$cliente_id, $loja_id]);
+        $stRegraAtiva->execute([$cliente_id, $loja_fid_id]);
         $regraAtiva = $stRegraAtiva->fetch(PDO::FETCH_ASSOC);
 
         if ($regraAtiva) {
@@ -68,7 +74,7 @@ if ($cliente_id > 0) {
             $fid['ciclos_completados'] = (int)$regraAtiva['ciclos_completados'];
         } else {
             $stFid = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE cliente_id = ? AND instituicao_id = ?");
-            $stFid->execute([$cliente_id, $loja_id]);
+            $stFid->execute([$cliente_id, $loja_fid_id]);
             $fidReal = $stFid->fetch(PDO::FETCH_ASSOC);
             if ($fidReal) $fid = $fidReal;
         }

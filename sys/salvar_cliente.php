@@ -51,6 +51,20 @@ try {
         // --- UPDATE (Edição) ---
         $cliente_id = $cliente['id'];
         
+        require_once __DIR__ . '/includes/unidades.php';
+        $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+        $in = implode(',', array_fill(0, count($ids_clientes), '?'));
+
+        $stVer = $pdo->prepare("SELECT instituicao_id FROM clientes WHERE id = ? AND instituicao_id IN ($in)");
+        $stVer->execute([$cliente_id, ...$ids_clientes]);
+        $origInstId = $stVer->fetchColumn();
+
+        if (!$origInstId) {
+            $pdo->rollBack();
+            echo json_encode(['success' => false, 'message' => 'Cliente não encontrado ou sem permissão.']);
+            exit;
+        }
+
         $sql = "UPDATE clientes SET 
                     nome_completo = ?, 
                     cpf = ?, 
@@ -62,7 +76,7 @@ try {
                     bairro = ?, 
                     cidade = ?, 
                     estado = ? 
-                WHERE id = ? AND instituicao_id = ?";
+                WHERE id = ?";
         
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
@@ -76,8 +90,7 @@ try {
             $cliente['bairro'],
             $cliente['cidade'],
             $cliente['estado'],
-            $cliente_id, // ID do Cliente
-            $id_loja     // ID da Loja (Segurança)
+            $cliente_id
         ]);
         $msg = 'Cliente atualizado!';
     }
@@ -86,12 +99,13 @@ try {
     $pdo->prepare("DELETE FROM pets WHERE cliente_id = ?")->execute([$cliente_id]);
     
     if (!empty($pets)) {
+        $instPet = !empty($origInstId) ? $origInstId : $id_loja;
         $sql_pet = "INSERT INTO pets (instituicao_id, cliente_id, nome, especie, raca, data_nascimento) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt_pet = $pdo->prepare($sql_pet);
         
         foreach ($pets as $pet) {
             $nasc = !empty($pet['nascimento']) ? $pet['nascimento'] : null;
-            $stmt_pet->execute([$id_loja, $cliente_id, $pet['nome'], $pet['especie'], $pet['raca'], $nasc]);
+            $stmt_pet->execute([$instPet, $cliente_id, $pet['nome'], $pet['especie'], $pet['raca'], $nasc]);
         }
     }
 

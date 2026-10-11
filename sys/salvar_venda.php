@@ -127,11 +127,15 @@ try {
     if ($participar_fidelidade && (!empty($cliente_whatsapp) || !empty($cliente_id))) {
         // Se cliente ainda não estava cadastrado/selecionado, busca pelo WhatsApp ou cria cliente rápido
         if (!$cliente_id && !empty($cliente_whatsapp)) {
+            require_once __DIR__ . '/includes/unidades.php';
+            $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+            $in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+
             $digitsPhone = preg_replace('/\D/', '', $cliente_whatsapp);
             $last8 = substr($digitsPhone, -8);
             
-            $stBusca = $pdo->prepare("SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id = ? AND REPLACE(REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE ? LIMIT 1");
-            $stBusca->execute([$id_loja, "%$last8%"]);
+            $stBusca = $pdo->prepare("SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id IN ($in_cli) AND REPLACE(REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE ? LIMIT 1");
+            $stBusca->execute([...$ids_clientes, "%$last8%"]);
             $cliExistente = $stBusca->fetch(PDO::FETCH_ASSOC);
 
             if ($cliExistente) {
@@ -146,20 +150,26 @@ try {
             // Atualiza o ID do cliente na venda recém gravada
             $pdo->prepare("UPDATE vendas SET cliente_id = ? WHERE id = ?")->execute([$cliente_id, $venda_id]);
         } elseif ($cliente_id && !empty($cliente_whatsapp)) {
+            require_once __DIR__ . '/includes/unidades.php';
+            $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+            $in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
             // Atualiza telefone se necessário
-            $pdo->prepare("UPDATE clientes SET telefone = ? WHERE id = ? AND instituicao_id = ? AND (telefone IS NULL OR telefone = '')")->execute([$cliente_whatsapp, $cliente_id, $id_loja]);
+            $pdo->prepare("UPDATE clientes SET telefone = ? WHERE id = ? AND instituicao_id IN ($in_cli) AND (telefone IS NULL OR telefone = '')")->execute([$cliente_whatsapp, $cliente_id, ...$ids_clientes]);
         }
 
         if ($cliente_id) {
             $operador = $_SESSION['usuario_nome'] ?? 'Caixa';
 
+            require_once __DIR__ . '/includes/unidades.php';
+            $id_loja_fid = obterInstituicaoFidelidade($pdo, (int)$id_loja);
+
             // 1. Atualiza cartão clássico (cliente_fidelidade)
             $stCliFid = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE instituicao_id = ? AND cliente_id = ?");
-            $stCliFid->execute([$id_loja, $cliente_id]);
+            $stCliFid->execute([$id_loja_fid, $cliente_id]);
             $cliFid = $stCliFid->fetch(PDO::FETCH_ASSOC);
 
             $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
-            $stCfg->execute([$id_loja]);
+            $stCfg->execute([$id_loja_fid]);
             $cfg = $stCfg->fetch(PDO::FETCH_ASSOC) ?: [
                 'compras_para_recompensa' => 10,
                 'recompensa_valor' => 15,
@@ -169,7 +179,7 @@ try {
 
             if (!$cliFid) {
                 $pdo->prepare("INSERT INTO cliente_fidelidade (instituicao_id, cliente_id, selos_atuais, total_gasto_historico, ultimo_acesso) VALUES (?, ?, 1, ?, NOW())")
-                    ->execute([$id_loja, $cliente_id, $valor_total]);
+                    ->execute([$id_loja_fid, $cliente_id, $valor_total]);
                 $selosAtuais = 1;
                 $ciclos = 0;
             } else {
@@ -177,7 +187,7 @@ try {
                 $novoGasto = (float)$cliFid['total_gasto_historico'] + $valor_total;
                 $ciclos = (int)$cliFid['ciclos_completados'];
                 $pdo->prepare("UPDATE cliente_fidelidade SET selos_atuais = ?, total_gasto_historico = ?, ultimo_acesso = NOW() WHERE instituicao_id = ? AND cliente_id = ?")
-                    ->execute([$selosAtuais, $novoGasto, $id_loja, $cliente_id]);
+                    ->execute([$selosAtuais, $novoGasto, $id_loja_fid, $cliente_id]);
             }
 
             $metaSelos = (int)($cfg['compras_para_recompensa'] ?? 10);
@@ -185,11 +195,11 @@ try {
 
             // Log de auditoria
             $pdo->prepare("INSERT INTO fidelidade_transacoes (instituicao_id, cliente_id, tipo, quantidade, descricao, usuario_operador) VALUES (?, ?, 'acumulo_selo', 1, ?, ?)")
-                ->execute([$id_loja, $cliente_id, "Selo #$selosAtuais de $metaSelos (Venda PDV #$venda_id)", $operador]);
+                ->execute([$id_loja_fid, $cliente_id, "Selo #$selosAtuais de $metaSelos (Venda PDV #$venda_id)", $operador]);
 
             // 2. Atualiza regras modulares (cliente_progresso_regras)
             $stRegras = $pdo->prepare("SELECT * FROM fidelidade_regras WHERE instituicao_id = ? AND ativo = 1");
-            $stRegras->execute([$id_loja]);
+            $stRegras->execute([$id_loja_fid]);
             $regrasAtivas = $stRegras->fetchAll(PDO::FETCH_ASSOC);
 
             foreach ($regrasAtivas as $regra) {
@@ -229,7 +239,7 @@ try {
                         $ciclosRegra = 0;
                         $recDisp = ($novoProg >= (int)$regra['condicao_valor']) ? 1 : 0;
                         $pdo->prepare("INSERT INTO cliente_progresso_regras (instituicao_id, cliente_id, regra_id, progresso_atual, ciclos_completados, recompensa_disponivel, ultimo_uso) VALUES (?, ?, ?, ?, ?, ?, NOW())")
-                            ->execute([$id_loja, $cliente_id, $regra['id'], $novoProg, $ciclosRegra, $recDisp]);
+                            ->execute([$id_loja_fid, $cliente_id, $regra['id'], $novoProg, $ciclosRegra, $recDisp]);
                     } else {
                         $novoProg = (int)$prog['progresso_atual'] + 1;
                         $ciclosRegra = (int)$prog['ciclos_completados'];
@@ -246,7 +256,7 @@ try {
             // 3. Monta link do Cartão Virtual
             $proto = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $cartao_url = "{$proto}://{$host}/landing_page/sys/cartao_cliente.php?cliente_id={$cliente_id}&loja_id={$id_loja}";
+            $cartao_url = "{$proto}://{$host}/landing_page/sys/cartao_cliente.php?cliente_id={$cliente_id}&loja_id={$id_loja_fid}";
 
             // 4. Monta Mensagem Formatada para WhatsApp com Comprovante e Cartão
             $stLojaInfo = $pdo->prepare("SELECT nome_fantasia FROM instituicoes WHERE id = ?");

@@ -56,9 +56,12 @@ try {
         $profissional_nome = trim($prof_input);
     }
 
-    // Valida se o pet pertence à instituição e ao cliente
-    $stmt_pet = $pdo->prepare("SELECT id FROM pets WHERE id = ? AND cliente_id = ? AND instituicao_id = ?");
-    $stmt_pet->execute([$pet_id, $cliente_id, $id_loja]);
+    // Valida se o pet pertence ao cliente e à instituição (ou unidades compartilhadas da rede)
+    require_once __DIR__ . '/includes/unidades.php';
+    $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+    $in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+    $stmt_pet = $pdo->prepare("SELECT id FROM pets WHERE id = ? AND cliente_id = ? AND instituicao_id IN ($in_cli)");
+    $stmt_pet->execute([$pet_id, $cliente_id, ...$ids_clientes]);
     if (!$stmt_pet->fetch()) {
         throw new Exception('O pet selecionado não pertence a este cliente ou instituição.');
     }

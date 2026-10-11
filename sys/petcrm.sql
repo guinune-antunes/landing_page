@@ -19,18 +19,41 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 -- ============================================================
+-- 0. REDES (empresa/grupo que agrupa várias unidades)
+-- ============================================================
+
+CREATE TABLE `redes` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `nome` varchar(200) NOT NULL,
+  `compartilhar_clientes` tinyint(1) NOT NULL DEFAULT 0,
+  `compartilhar_fidelidade` tinyint(1) NOT NULL DEFAULT 0,
+  `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
 -- 1. INSTITUIÇÕES (Multi-tenant)
 -- ============================================================
 
+-- `instituicoes` = UNIDADE (loja). rede_id NULL = loja independente.
 CREATE TABLE `instituicoes` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `rede_id` int(10) UNSIGNED DEFAULT NULL,
   `nome_fantasia` varchar(200) NOT NULL,
+  `nome_unidade` varchar(120) DEFAULT NULL,
+  `cidade` varchar(100) DEFAULT NULL,
+  `uf` varchar(2) DEFAULT NULL,
+  `matriz` tinyint(1) NOT NULL DEFAULT 0,
   `cnpj` varchar(20) DEFAULT NULL,
   `plano` varchar(30) DEFAULT NULL,
   `modulos_contratados` json DEFAULT NULL,
   `ativo` tinyint(1) NOT NULL DEFAULT 1,
   `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `fk_instituicoes_redes` (`rede_id`),
+  CONSTRAINT `fk_instituicoes_redes` FOREIGN KEY (`rede_id`) REFERENCES `redes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -48,11 +71,23 @@ CREATE TABLE `usuarios` (
   `permissoes` json DEFAULT NULL,
   `precisa_mudar_senha` tinyint(1) NOT NULL DEFAULT 0,
   `ativo` tinyint(1) NOT NULL DEFAULT 1,
+  `acesso_rede` tinyint(1) NOT NULL DEFAULT 0,
   `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uidx_email` (`email`),
   KEY `fk_usuarios_instituicoes` (`instituicao_id`),
   CONSTRAINT `fk_usuarios_instituicoes` FOREIGN KEY (`instituicao_id`) REFERENCES `instituicoes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Unidades adicionais às quais um usuário (ex.: gerente) tem acesso
+CREATE TABLE `usuario_unidades` (
+  `usuario_id` int(10) UNSIGNED NOT NULL,
+  `instituicao_id` int(10) UNSIGNED NOT NULL,
+  `data_vinculo` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`usuario_id`, `instituicao_id`),
+  KEY `idx_uu_instituicao` (`instituicao_id`),
+  CONSTRAINT `fk_uu_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_uu_instituicao` FOREIGN KEY (`instituicao_id`) REFERENCES `instituicoes` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

@@ -4,13 +4,14 @@ session_start();
 header('Content-Type: application/json');
 
 require 'conexao.php'; 
+require_once __DIR__ . '/includes/unidades.php';
 
 // --- 1. SEGURANÇA SAAS ---
 if (!isset($_SESSION['instituicao_id'])) {
     echo json_encode(['success' => false, 'message' => 'Sessão inválida ou expirada.']);
     exit;
 }
-$id_loja = $_SESSION['instituicao_id'];
+$id_loja = (int)$_SESSION['instituicao_id'];
 
 $response = [
     'success' => false,
@@ -28,11 +29,14 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 $clientId = (int)$_GET['id'];
 
 try {
-    // --- 3. BUSCAR CLIENTE (FILTRADO PELA LOJA) ---
+    // --- 3. BUSCAR CLIENTE (FILTRADO PELA LOJA OU REDE) ---
+    $ids_clientes = obterInstituicoesClientes($pdo, $id_loja);
+    $in = implode(',', array_fill(0, count($ids_clientes), '?'));
+
     $sql_cliente = "SELECT 
                         id, 
                         nome_completo, 
-                        cpf,  -- <-- Adicionado CPF
+                        cpf,
                         telefone, 
                         email, 
                         cep, 
@@ -40,14 +44,15 @@ try {
                         numero, 
                         bairro, 
                         cidade, 
-                        estado 
+                        estado,
+                        instituicao_id
                     FROM 
                         clientes 
                     WHERE 
-                        id = ? AND instituicao_id = ?"; // <-- Trava de segurança
+                        id = ? AND instituicao_id IN ($in)";
     
     $stmt_cliente = $pdo->prepare($sql_cliente);
-    $stmt_cliente->execute([$clientId, $id_loja]); // Passa ID do cliente e ID da loja
+    $stmt_cliente->execute([$clientId, ...$ids_clientes]);
     $cliente = $stmt_cliente->fetch();
 
     if ($cliente) {

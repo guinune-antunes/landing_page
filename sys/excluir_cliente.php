@@ -17,11 +17,14 @@ if (!$clienteId || $clienteId <= 0) {
 
 $pdo->beginTransaction();
 try {
-    // DELETE com filtro de instituicao_id (isolamento multi-tenant)
-    // Os pets associados serão deletados automaticamente via ON DELETE CASCADE
-    $sql = "DELETE FROM clientes WHERE id = ? AND instituicao_id = ?";
+    require_once __DIR__ . '/includes/unidades.php';
+    $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+    $in = implode(',', array_fill(0, count($ids_clientes), '?'));
+
+    // DELETE com filtro de instituicao_id (isolamento multi-tenant / rede)
+    $sql = "DELETE FROM clientes WHERE id = ? AND instituicao_id IN ($in)";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$clienteId, $id_loja]);
+    $stmt->execute([$clienteId, ...$ids_clientes]);
 
     if ($stmt->rowCount() > 0) {
         $pdo->commit();

@@ -7,6 +7,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 header('Content-Type: application/json');
 require 'conexao.php';
+require_once __DIR__ . '/includes/unidades.php';
 
 $response = ['success' => false, 'pets' => []];
 
@@ -21,9 +22,11 @@ $id_loja = $_SESSION['instituicao_id'] ?? null;
 
 try {
     if ($id_loja) {
-        $sql = "SELECT id, nome, especie, raca FROM pets WHERE cliente_id = ? AND instituicao_id = ? ORDER BY nome ASC";
+        $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+        $in = implode(',', array_fill(0, count($ids_clientes), '?'));
+        $sql = "SELECT id, nome, especie, raca FROM pets WHERE cliente_id = ? AND instituicao_id IN ($in) ORDER BY nome ASC";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$cliente_id, $id_loja]);
+        $stmt->execute([$cliente_id, ...$ids_clientes]);
     } else {
         $sql = "SELECT id, nome, especie, raca FROM pets WHERE cliente_id = ? ORDER BY nome ASC";
         $stmt = $pdo->prepare($sql);
