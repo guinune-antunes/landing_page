@@ -1241,4 +1241,16 @@ document.addEventListener('DOMContentLoaded', function() {
     if (phoneInput) maskInput(phoneInput, 'tel');
     if (phoneInputUser) maskInput(phoneInputUser, 'tel');
 
+    // ===================================================
+    // 6. GERENCIAMENTO DE TEMA ESCURO / CLARO (DARK MODE)
+    // ===================================================
+    const initThemeToggle = () => {
+        const toggleBtn = document.getElementById('theme-toggle-btn');
+        if (toggleBtn && !toggleBtn.onclick && window.toggleDarkMode) {
+            toggleBtn.addEventListener('click', window.toggleDarkMode);
+        }
+    };
+
+    initThemeToggle();
+
 });
