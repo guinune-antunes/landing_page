@@ -11,7 +11,7 @@ try {
     if ($email && $senha_digitada) {
         // 1. ADICIONADO: Coluna 'precisa_mudar_senha' incluída na busca
         //    + status da instituição (lojas bloqueadas não fazem login)
-        $stmt = $pdo->prepare("SELECT u.id, u.nome, u.email, u.senha_hash, u.cargo, u.instituicao_id, u.precisa_mudar_senha, i.ativo AS instituicao_ativa
+        $stmt = $pdo->prepare("SELECT u.id, u.nome, u.email, u.senha_hash, u.cargo, u.instituicao_id, u.precisa_mudar_senha, u.acesso_rede, i.ativo AS instituicao_ativa
                                FROM usuarios u
                                LEFT JOIN instituicoes i ON i.id = u.instituicao_id
                                WHERE u.email = ? AND u.ativo = 1");
@@ -24,6 +24,7 @@ try {
             $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['usuario_nome'] = $usuario['nome'];
             $_SESSION['usuario_cargo'] = $usuario['cargo'];
+            $_SESSION['usuario_acesso_rede'] = (int)($usuario['acesso_rede'] ?? 0);
             $_SESSION['instituicao_id'] = $usuario['instituicao_id'];
 
             // Multi-unidade: resolve as unidades permitidas (origem + vínculos + rede)

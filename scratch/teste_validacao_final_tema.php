@@ -53,3 +53,4 @@ if (empty($errors)) {
 } else {
     echo "FALHAS:\n" . implode("\n", $errors) . "\n";
 }
+

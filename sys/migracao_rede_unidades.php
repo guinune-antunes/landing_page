@@ -136,5 +136,135 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS `transferencias_estoque` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 logm('[ok] tabela transferencias_estoque');
 
+// 7. Gestor responsável por cada unidade ───────────────────────────────────────
+//    Definido pelo Gerente Geral da rede. Aprova/nega requisições de estoque.
+if (!colunaExiste($pdo, 'instituicoes', 'gestor_id')) {
+    $pdo->exec("ALTER TABLE `instituicoes`
+                ADD COLUMN `gestor_id` int(10) UNSIGNED DEFAULT NULL,
+                ADD KEY `fk_instituicoes_gestor` (`gestor_id`),
+                ADD CONSTRAINT `fk_instituicoes_gestor` FOREIGN KEY (`gestor_id`)
+                    REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE");
+    logm('[ok] instituicoes.gestor_id criada');
+} else {
+    logm('[--] instituicoes.gestor_id já existe');
+}
+
+// 8. Fluxo de aprovação das transferências (requisições entre unidades) ────────
+//    origem_id  = unidade FORNECEDORA (envia)   → seu gestor autoriza ou nega
+//    destino_id = unidade SOLICITANTE (recebe)  → seu gestor abre e confirma o recebimento
+//    pendente → em_transito → recebida | negada | cancelada | recusada
+//    Registros antigos (transferências diretas) ficam como 'recebida'.
+$colsTe = [
+    'status'           => "ADD COLUMN `status` enum('pendente','em_transito','recebida','negada','cancelada','recusada') NOT NULL DEFAULT 'recebida'",
+    'justificativa'    => "ADD COLUMN `justificativa` varchar(255) DEFAULT NULL",
+    'aprovador_id'     => "ADD COLUMN `aprovador_id` int(10) UNSIGNED DEFAULT NULL",
+    'data_resposta'    => "ADD COLUMN `data_resposta` datetime DEFAULT NULL",
+    'recebedor_id'     => "ADD COLUMN `recebedor_id` int(10) UNSIGNED DEFAULT NULL",
+    'data_recebimento' => "ADD COLUMN `data_recebimento` datetime DEFAULT NULL",
+];
+foreach ($colsTe as $col => $ddl) {
+    if (!colunaExiste($pdo, 'transferencias_estoque', $col)) {
+        $pdo->exec("ALTER TABLE `transferencias_estoque` $ddl");
+        logm("[ok] transferencias_estoque.$col criada");
+    } else {
+        logm("[--] transferencias_estoque.$col já existe");
+    }
+}
+if (!indiceExiste($pdo, 'transferencias_estoque', 'idx_te_status')) {
+    $pdo->exec("ALTER TABLE `transferencias_estoque` ADD KEY `idx_te_status` (`status`)");
+    logm('[ok] índice transferencias_estoque.status criado');
+}
+
+// 9. Políticas de Alçada & Release Strategies em Redes ──────────────────────────
+$colsRede = [
+    'limite_alcada_loja'           => "ADD COLUMN `limite_alcada_loja` decimal(10,2) NOT NULL DEFAULT 1000.00",
+    'exige_aprovacao_medicamentos' => "ADD COLUMN `exige_aprovacao_medicamentos` tinyint(1) NOT NULL DEFAULT 1",
+];
+foreach ($colsRede as $col => $ddl) {
+    if (!colunaExiste($pdo, 'redes', $col)) {
+        $pdo->exec("ALTER TABLE `redes` $ddl");
+        logm("[ok] redes.$col criada");
+    } else {
+        logm("[--] redes.$col já existe");
+    }
+}
+
+// 10. Delegação e Ausência / Substituto Temporário em Instituições ────────────
+$colsInstSub = [
+    'substituto_id'  => "ADD COLUMN `substituto_id` int(10) UNSIGNED DEFAULT NULL",
+    'ausente_inicio' => "ADD COLUMN `ausente_inicio` date DEFAULT NULL",
+    'ausente_fim'    => "ADD COLUMN `ausente_fim` date DEFAULT NULL",
+];
+foreach ($colsInstSub as $col => $ddl) {
+    if (!colunaExiste($pdo, 'instituicoes', $col)) {
+        $pdo->exec("ALTER TABLE `instituicoes` $ddl");
+        logm("[ok] instituicoes.$col criada");
+    } else {
+        logm("[--] instituicoes.$col já existe");
+    }
+}
+$fkSub = $pdo->query("SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+                      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'instituicoes'
+                        AND CONSTRAINT_NAME = 'fk_instituicoes_substituto'")->fetchColumn();
+if (!(int)$fkSub) {
+    $pdo->exec("ALTER TABLE `instituicoes`
+                ADD KEY `fk_instituicoes_substituto` (`substituto_id`),
+                ADD CONSTRAINT `fk_instituicoes_substituto` FOREIGN KEY (`substituto_id`)
+                    REFERENCES `usuarios` (`id`) ON DELETE SET NULL ON UPDATE CASCADE");
+    logm('[ok] FK instituicoes.substituto_id → usuarios.id');
+}
+
+// 11. Categorização de Produtos para Release Strategies ────────────────────────
+if (!colunaExiste($pdo, 'produtos', 'categoria')) {
+    $pdo->exec("ALTER TABLE `produtos` ADD COLUMN `categoria` enum('Geral','Ração','Medicamento','Vacina','Higiene & Estética','Acessórios','Outros') NOT NULL DEFAULT 'Geral'");
+    logm('[ok] produtos.categoria criada');
+} else {
+    logm('[--] produtos.categoria já existe');
+}
+
+// Auto-classificação inicial baseada no nome para produtos existentes
+$pdo->exec("UPDATE `produtos` SET `categoria` = 'Vacina' WHERE `categoria` = 'Geral' AND (LOWER(`nome_produto`) LIKE '%vacina%' OR LOWER(`nome_produto`) LIKE '%v8%' OR LOWER(`nome_produto`) LIKE '%v10%')");
+$pdo->exec("UPDATE `produtos` SET `categoria` = 'Medicamento' WHERE `categoria` = 'Geral' AND (LOWER(`nome_produto`) LIKE '%verm%' OR LOWER(`nome_produto`) LIKE '%antib%' OR LOWER(`nome_produto`) LIKE '%anti-infl%' OR LOWER(`nome_produto`) LIKE '%remedio%' OR LOWER(`nome_produto`) LIKE '%colírio%' OR LOWER(`nome_produto`) LIKE '%pomada%')");
+$pdo->exec("UPDATE `produtos` SET `categoria` = 'Ração' WHERE `categoria` = 'Geral' AND (LOWER(`nome_produto`) LIKE '%ração%' OR LOWER(`nome_produto`) LIKE '%racao%' OR LOWER(`nome_produto`) LIKE '%sachê%' OR LOWER(`nome_produto`) LIKE '%petisco%')");
+
+// 12. Atualização dos campos de Alçada em transferencias_estoque ───────────────
+$colsTeAlcada = [
+    'valor_total'     => "ADD COLUMN `valor_total` decimal(10,2) NOT NULL DEFAULT 0.00",
+    'exige_superior'  => "ADD COLUMN `exige_superior` tinyint(1) NOT NULL DEFAULT 0",
+    'motivo_superior' => "ADD COLUMN `motivo_superior` varchar(255) DEFAULT NULL",
+];
+foreach ($colsTeAlcada as $col => $ddl) {
+    if (!colunaExiste($pdo, 'transferencias_estoque', $col)) {
+        $pdo->exec("ALTER TABLE `transferencias_estoque` $ddl");
+        logm("[ok] transferencias_estoque.$col criada");
+    } else {
+        logm("[--] transferencias_estoque.$col já existe");
+    }
+}
+
+// Atualiza o enum de status para suportar 'aguardando_aprovacao_superior'
+$pdo->exec("ALTER TABLE `transferencias_estoque` MODIFY COLUMN `status` enum('pendente','em_transito','aguardando_aprovacao_superior','recebida','negada','cancelada','recusada') NOT NULL DEFAULT 'recebida'");
+logm('[ok] transferencias_estoque.status enum atualizado com aguardando_aprovacao_superior');
+
+// 13. Tabela de Trilha de Auditoria Imutável (Audit Trail) ─────────────────────
+$pdo->exec("CREATE TABLE IF NOT EXISTS `transferencias_auditoria` (
+  `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `transferencia_id` int(10) UNSIGNED NOT NULL,
+  `usuario_id` int(10) UNSIGNED DEFAULT NULL,
+  `usuario_nome` varchar(200) DEFAULT NULL,
+  `acao` varchar(60) NOT NULL,
+  `de_status` varchar(40) DEFAULT NULL,
+  `para_status` varchar(40) NOT NULL,
+  `detalhes` text DEFAULT NULL,
+  `ip` varchar(45) DEFAULT NULL,
+  `data_hora` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_ta_transf` (`transferencia_id`, `data_hora`),
+  KEY `idx_ta_usuario` (`usuario_id`),
+  CONSTRAINT `fk_ta_transf` FOREIGN KEY (`transferencia_id`) REFERENCES `transferencias_estoque` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+logm('[ok] tabela transferencias_auditoria criada');
+
+
 
 logm("\nMigração concluída. Instituições existentes continuam como unidades independentes (rede_id = NULL).");

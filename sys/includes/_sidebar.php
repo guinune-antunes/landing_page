@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="style.css">
+
 
 <?php
 // Evita avisos de variável indefinida
@@ -117,7 +117,7 @@ if (!function_exists('temPermissao')) {
                 <a href="crm_vendas.php" class="nav-item <?php echo ($paginaAtiva === 'crm_vendas') ? 'active' : ''; ?>">
                     <i class="fas fa-headset"></i> CRM Vendas Ativas
                 </a>
-                <a href="fidelizacao.php" class="nav-item <?php echo ($paginaAtiva === 'fidelizacao') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem;">
+                <a href="fidelizacao.php" class="nav-item <?php echo ($paginaAtiva === 'fidelizacao') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem; display:flex; align-items:center;">
                     <i class="fas fa-award" style="color: #f1c40f;"></i> Fidelização & Ofertas
                 </a>
             <?php endif; ?>
@@ -142,8 +142,13 @@ if (!function_exists('temPermissao')) {
                         <i class="fas fa-box-open"></i> Produtos
                     </a>
                     <?php if (count($_SESSION['unidades_permitidas'] ?? []) > 1): ?>
-                        <a href="transferencia_estoque.php" class="nav-item <?php echo ($paginaAtiva === 'transferencia') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem;">
-                            <i class="fas fa-exchange-alt"></i> Transferir Estoque
+                        <a href="transferencia_estoque.php" class="nav-item <?php echo ($paginaAtiva === 'transferencia') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem; display:flex; align-items:center;">
+                            <span><i class="fas fa-exchange-alt"></i> Transferir Estoque</span><?php
+                            $stReqC = $pdo->prepare("SELECT COUNT(*) FROM transferencias_estoque WHERE origem_id = ? AND status = 'em_transito'");
+                            $stReqC->execute([(int)($id_loja ?? 0)]);
+                            $qP = (int)$stReqC->fetchColumn();
+                            if ($qP > 0) echo '<span style="background:#e74c3c; color:white; border-radius:10px; padding:2px 7px; font-size:0.72rem; font-weight:bold; margin-right:15px; margin-left:auto;">' . $qP . '</span>';
+                            ?>
                         </a>
                     <?php endif; ?>
                 <?php endif; ?>

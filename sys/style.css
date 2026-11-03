@@ -1001,13 +1001,13 @@ body, .sidebar, .header, .widget-card, .table-container,
     display: inline-flex !important;
     align-items: center !important;
     gap: 8px !important;
-    background: #f1f5f9;
+    background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 20px;
     padding: 6px 14px;
     font-size: 0.82rem;
     font-weight: 600;
-    color: #475569;
+    color: #334155;
     cursor: pointer;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
@@ -1015,37 +1015,22 @@ body, .sidebar, .header, .widget-card, .table-container,
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     user-select: none;
     white-space: nowrap;
+    margin: 0 4px;
+    line-height: 1;
 }
 .theme-toggle-pill:hover {
-    background: #e2e8f0;
+    background: #f1f5f9;
     border-color: #94a3b8;
     color: #0f172a;
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(0,0,0,0.08);
 }
-.theme-toggle-pill .theme-icon-container {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-}
-.theme-toggle-pill .theme-icon-moon {
-    display: inline-block !important;
-    color: #3b82f6;
+.theme-toggle-pill i {
     font-size: 0.95rem;
     transition: transform 0.25s ease;
 }
-.theme-toggle-pill .theme-icon-sun {
-    display: none !important;
-    color: #f59e0b;
-    font-size: 1rem;
-    transition: transform 0.25s ease;
-}
-.theme-toggle-pill .theme-toggle-text {
-    font-size: 0.82rem;
-    font-weight: 600;
-    letter-spacing: 0.2px;
+.theme-toggle-pill:hover i {
+    transform: scale(1.15) rotate(12deg);
 }
 
 /* Estado Ativo no Dark Mode */
@@ -1062,20 +1047,6 @@ body, .sidebar, .header, .widget-card, .table-container,
     box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
     transform: translateY(-1px);
 }
-.dark-theme .theme-toggle-pill .theme-icon-moon {
-    display: none !important;
-}
-.dark-theme .theme-toggle-pill .theme-icon-sun {
-    display: inline-block !important;
-    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.6));
-    animation: sunPulse 2s infinite ease-in-out;
-}
-
-@keyframes sunPulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15) rotate(15deg); }
-}
-
 /* --- C: Barra de Rolagem Escura Personalizada --- */
 .dark-theme ::-webkit-scrollbar {
     width: 8px;
@@ -1454,4 +1425,4 @@ body, .sidebar, .header, .widget-card, .table-container,
 }
 .dark-theme .vip-stamps-tray {
     background: rgba(0, 0, 0, 0.4);
-}
+}

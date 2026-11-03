@@ -105,6 +105,31 @@ try {
         ];
     }
 
+    // 5. REQUISIÇÕES DE ESTOQUE AGUARDANDO AUTORIZAÇÃO
+    $stReqPend = $pdo->prepare("SELECT t.id, t.nome_produto, t.quantidade, i.nome_unidade, i.nome_fantasia
+                                FROM transferencias_estoque t
+                                JOIN instituicoes i ON i.id = t.destino_id
+                                WHERE t.origem_id = ? AND t.status = 'em_transito'
+                                ORDER BY t.data_transferencia ASC");
+    $stReqPend->execute([$id_loja]);
+    $reqs_pend = $stReqPend->fetchAll(PDO::FETCH_ASSOC);
+
+    if (count($reqs_pend) > 0) {
+        $itens = [];
+        foreach($reqs_pend as $rp) {
+            $lojaNome = htmlspecialchars($rp['nome_unidade'] ?: $rp['nome_fantasia']);
+            $itens[] = "<strong>{$rp['quantidade']} un. de " . htmlspecialchars($rp['nome_produto']) . "</strong> solicitadas por $lojaNome";
+        }
+        $alertas[] = [
+            'tipo' => 'info', 'corHex' => '#3498db', 'corFundo' => '#ebf5fb', 'icone' => 'fa-truck-loading',
+            'titulo' => 'Requisições de Estoque',
+            'resumo' => count($reqs_pend) . ' pedido(s) aguardando sua autorização de envio.',
+            'descricao' => 'Outra unidade da rede solicitou produtos do seu estoque. Entre em contato e autorize ou negue o envio.',
+            'link' => 'transferencia_estoque.php#tab-recebidas', 'textoBotao' => 'Avaliar Pedidos',
+            'is_delegavel' => false, 'itens' => $itens
+        ];
+    }
+
     echo json_encode($alertas);
 } catch (Exception $e) { echo json_encode([]); }
 ?>

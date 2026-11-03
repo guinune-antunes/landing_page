@@ -25,16 +25,13 @@
                 </label>
             </form>
         <?php endif; ?>
-        <!-- Botão Único com Destaque para Alternar Tema Claro / Escuro -->
+        <!-- Botão Único com Design Refinado para Alternar Tema Claro / Escuro -->
         <button type="button" id="theme-toggle-btn" class="theme-toggle-pill" onclick="window.toggleDarkMode()" title="Alternar Modo Escuro / Claro" aria-label="Alternar Modo Escuro / Claro">
-            <span class="theme-icon-container">
-                <i class="fas fa-moon theme-icon-moon"></i>
-                <i class="fas fa-sun theme-icon-sun"></i>
-            </span>
-            <span id="theme-toggle-text" class="theme-toggle-text">
-                <script>document.write(document.documentElement.classList.contains('dark-theme') ? 'Modo Claro' : 'Modo Escuro');</script>
-            </span>
+            <i id="theme-toggle-icon" class="fas fa-moon" style="color: #3b82f6;"></i>
+            <span id="theme-toggle-label">Modo Escuro</span>
         </button>
+        <script>if (typeof window.syncThemeUI === 'function') { window.syncThemeUI(); }</script>
+
         <i class="fas fa-bell"></i>
         <div class="user-info">
             <span><?php echo htmlspecialchars($_SESSION['usuario_nome'] ?? 'Usuário'); ?></span>
