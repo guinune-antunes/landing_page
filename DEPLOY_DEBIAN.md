@@ -95,7 +95,7 @@ Você verá:
 Abra o seu navegador:
 * **Landing Page:** `http://IP_DO_SEU_SERVIDOR/`
 * **Painel do PetCRM:** `http://IP_DO_SEU_SERVIDOR/sys/login.php`
-* **phpMyAdmin (Opcional):** `http://IP_DO_SEU_SERVIDOR:8080/`
+* **phpMyAdmin (Opcional):** `http://IP_DO_SEU_SERVIDOR:8085/`
   * Usuário: `root`
   * Senha: `root_super_senha_segura`
 

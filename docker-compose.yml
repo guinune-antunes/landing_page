@@ -6,7 +6,7 @@ services:
     container_name: petcrm_web
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "${WEB_PORT:-80}:80"
     environment:
       DB_HOST: db
       DB_NAME: petcrm
@@ -41,13 +41,13 @@ services:
     networks:
       - petcrm_network
 
-  # Interface web opcional para gerenciar o banco de dados via navegador (porta 8080)
+  # Interface web opcional para gerenciar o banco de dados via navegador (porta 8085 ou customizável via PMA_PORT)
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: petcrm_pma
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "${PMA_PORT:-8085}:80"
     environment:
       PMA_HOST: db
       PMA_PORT: 3306
