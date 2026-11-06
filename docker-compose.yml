@@ -6,7 +6,7 @@ services:
     container_name: petcrm_web
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-80}:80"
+      - "${WEB_PORT:-8081}:80"
     environment:
       DB_HOST: db
       DB_NAME: petcrm
