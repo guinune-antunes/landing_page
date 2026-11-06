@@ -1,0 +1,69 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: petcrm_web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: petcrm
+      DB_USER: petcrm_user
+      DB_PASS: petcrm_senha_segura
+      DB_PORT: 3306
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - petcrm_network
+
+  db:
+    image: mariadb:10.11
+    container_name: petcrm_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_super_senha_segura
+      MYSQL_DATABASE: petcrm
+      MYSQL_USER: petcrm_user
+      MYSQL_PASSWORD: petcrm_senha_segura
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - petcrm_network
+
+  # Interface web opcional para gerenciar o banco de dados via navegador (porta 8080)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: petcrm_pma
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: root_super_senha_segura
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - petcrm_network
+
+networks:
+  petcrm_network:
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+

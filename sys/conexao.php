@@ -1,14 +1,15 @@
 <?php
 // Configurações do Banco
-// Certifique-se de que não há espaços antes da tag <?php acima!
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'petcrm');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+// Suporte a Docker / Produção via variáveis de ambiente com fallback para XAMPP local
+define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+define('DB_NAME', getenv('DB_NAME') ?: 'petcrm');
+define('DB_USER', getenv('DB_USER') ?: 'root');
+define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
+define('DB_PORT', getenv('DB_PORT') ?: '3306');
 
 // Configurações de charset e DSN
 $charset = 'utf8mb4';
-$dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=$charset";
+$dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=$charset";
 
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

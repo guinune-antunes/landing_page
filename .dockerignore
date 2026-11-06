@@ -1,0 +1,9 @@
+.git
+.gitignore
+.gemini
+.system_generated
+.user_uploaded
+scratch
+*.log
+docker/init.sql
+
