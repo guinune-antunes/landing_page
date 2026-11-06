@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Teste</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body { margin: 0; padding: 40px; background: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; justify-content: center; align-items: center; }
+        .mermaid { background: white; }
+    </style>
+</head>
+<body>
+    <div class="mermaid">
+        graph TD
+            A[Início do Fluxo] --> B[Processando Dados]
+            B --> C{Condição?}
+            C -- Sim --> D[Aprovado]
+            C -- Não --> E[Recusado]
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>
+

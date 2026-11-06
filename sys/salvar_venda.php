@@ -102,8 +102,11 @@ try {
                     $pet = $stmt_pet->fetch(PDO::FETCH_ASSOC);
                     $pet_id_venda = $pet ? $pet['id'] : null;
 
-                    // Lança a oportunidade como Pendente no CRM
+                    // Lança a oportunidade como Pendente no CRM (e baixa as anteriores pendentes deste pet)
                     if ($pet_id_venda) {
+                        // Fecha ciclo anterior pendente
+                        $pdo->prepare("UPDATE oportunidades_venda SET status = 'Venda Fechada' WHERE pet_id = ? AND status = 'Pendente'")->execute([$pet_id_venda]);
+
                         $sql_crm = "INSERT INTO oportunidades_venda (instituicao_id, cliente_id, pet_id, produto_id, produto_nome, data_compra, status)
                                     VALUES (?, ?, ?, ?, ?, NOW(), 'Pendente')";
                         $pdo->prepare($sql_crm)->execute([

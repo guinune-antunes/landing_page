@@ -1,9 +1,7 @@
 <?php
-$pageTitle = 'PDV - Vendas';
-$paginaAtiva = 'vendas';
-include 'includes/_head.php';
-require 'conexao.php';
-require 'includes/verifica_login.php';
+require_once 'includes/verifica_login.php';
+require_once 'conexao.php';
+require_once __DIR__ . '/includes/unidades.php';
 
 // Confirma a loja
 $id_loja = $_SESSION['instituicao_id'] ?? null;
@@ -11,7 +9,19 @@ if (!$id_loja) {
     die("Sessão expirada. Faça login novamente.");
 }
 
-require_once __DIR__ . '/includes/unidades.php';
+$pageTitle = 'PDV - Vendas';
+$paginaAtiva = 'vendas';
+include 'includes/_head.php';
+
+// Suporte para pré-seleção vindo do CRM de Reposição
+$cliente_selecionado = isset($_GET['cliente_id']) ? (int)$_GET['cliente_id'] : 0;
+$produto_selecionado = isset($_GET['produto_id']) ? (int)$_GET['produto_id'] : 0;
+$prodPreload = null;
+if ($produto_selecionado > 0) {
+    $stmtPre = $pdo->prepare("SELECT id, nome_produto, preco_venda FROM produtos WHERE id = ?");
+    $stmtPre->execute([$produto_selecionado]);
+    $prodPreload = $stmtPre->fetch(PDO::FETCH_ASSOC);
+}
 
 // Busca os clientes da loja (ou da rede se compartilhado) para o Select do PDV
 $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
@@ -133,7 +143,7 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
                             <select id="pdv-cliente">
                                 <option value="" data-telefone="" data-nome="">Cliente Balcão (Anônimo)</option>
                                 <?php foreach ($clientes as $c): ?>
-                                    <option value="<?php echo $c['id']; ?>" data-telefone="<?php echo htmlspecialchars($c['telefone'] ?? ''); ?>" data-nome="<?php echo htmlspecialchars($c['nome_completo']); ?>">
+                                    <option value="<?php echo $c['id']; ?>" <?php echo ($cliente_selecionado == $c['id']) ? 'selected' : ''; ?> data-telefone="<?php echo htmlspecialchars($c['telefone'] ?? ''); ?>" data-nome="<?php echo htmlspecialchars($c['nome_completo']); ?>">
                                         <?php echo htmlspecialchars($c['nome_completo']); ?> <?php echo !empty($c['telefone']) ? ' (' . htmlspecialchars($c['telefone']) . ')' : ''; ?>
                                     </option>
                                 <?php endforeach; ?>
@@ -335,5 +345,24 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 </div>
+
+<?php if ($prodPreload || $cliente_selecionado > 0): ?>
+<script>
+window.addEventListener('load', function() {
+    <?php if ($prodPreload): ?>
+        if (typeof window.adicionarAoCarrinho === 'function') {
+            window.adicionarAoCarrinho(<?php echo (int)$prodPreload['id']; ?>, <?php echo json_encode($prodPreload['nome_produto']); ?>, <?php echo (float)$prodPreload['preco_venda']; ?>);
+        }
+    <?php endif; ?>
+    <?php if ($cliente_selecionado > 0): ?>
+        const selCli = document.getElementById('pdv-cliente');
+        if (selCli) {
+            selCli.value = "<?php echo $cliente_selecionado; ?>";
+            selCli.dispatchEvent(new Event('change'));
+        }
+    <?php endif; ?>
+});
+</script>
+<?php endif; ?>
 
 <?php include 'includes/_footer.php'; ?>
