@@ -1692,3 +1692,318 @@ body, .sidebar, .header, .widget-card, .table-container,
 .dark-theme .box-racao-hint {
     color: #94a3b8;
 }
+
+
+/* ===================================================
+   REGRAS AVANÇADAS DE RESPONSIVIDADE E MOBILE ROBUSTO
+   =================================================== */
+
+/* Prevenção Global contra Overflow Horizontal */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+.dashboard-container, .main-area, .content-wrapper {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Botão Hamburger e Drawer Lateral */
+.mobile-menu-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-dark);
+    font-size: 1.35rem;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1;
+    transition: background-color 0.2s;
+}
+.mobile-menu-btn:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+.dark-theme .mobile-menu-btn {
+    color: #f1f5f9;
+}
+.dark-theme .mobile-menu-btn:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-close-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text-light);
+    font-size: 1.6rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+}
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    z-index: 1050;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Classes Utilitárias de Flex */
+.form-group-row .form-group.flex-2 { flex: 2 1 240px; }
+.form-group-row .form-group.col-peso { flex: 1.2 1 180px; }
+.form-group-row .form-group.col-linha { flex: 1.5 1 200px; }
+
+/* Indicador de rolagem de tabela no mobile */
+.mobile-scroll-indicator {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+}
+
+/* --- REGRAS MOBILE (max-width: 768px) --- */
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-close-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-right: 15px;
+    }
+
+    /* Sidebar Drawer Mobile */
+    .sidebar {
+        left: -290px !important;
+        width: 280px !important;
+        transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        z-index: 1060 !important;
+        box-shadow: none;
+    }
+    .sidebar.open {
+        left: 0 !important;
+        box-shadow: 6px 0 30px rgba(0, 0, 0, 0.5) !important;
+    }
+
+    /* Header Compacto */
+    .header {
+        padding: 10px 14px !important;
+        gap: 10px !important;
+    }
+    .header-left {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .header-search {
+        flex: 1;
+        margin-top: 0 !important;
+        order: unset !important;
+    }
+    .header-profile {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px !important;
+        border-top: 1px solid var(--border-color);
+        padding-top: 8px;
+    }
+    .header-profile .user-info small {
+        display: none !important;
+    }
+    .theme-toggle-pill span {
+        display: none !important;
+    }
+    .theme-toggle-pill {
+        padding: 8px 10px !important;
+        border-radius: 20px !important;
+    }
+
+    /* Área Principal e Conteúdo */
+    .main-area {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    .main-content {
+        padding: 14px 10px !important;
+    }
+    .widget-card {
+        padding: 14px 10px !important;
+        border-radius: 10px !important;
+    }
+
+    /* Cabeçalho da Página e Filtros */
+    .page-header-produtos {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        margin-bottom: 14px !important;
+    }
+    .page-header-produtos .main-title {
+        font-size: 1.4rem !important;
+        margin-bottom: 2px !important;
+    }
+    .page-header-produtos #btn-novo-produto {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 12px !important;
+        font-size: 0.95rem !important;
+    }
+    .quick-filter-bar {
+        display: flex !important;
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+        margin-bottom: 12px !important;
+    }
+    .btn-quick-filter {
+        flex: 1 1 calc(50% - 6px) !important;
+        text-align: center !important;
+        padding: 8px 10px !important;
+        font-size: 0.78rem !important;
+        justify-content: center !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .mobile-scroll-indicator {
+        display: flex !important;
+    }
+
+    /* ==============================================
+       MODAIS EM DISPOSITIVOS MÓVEIS (100% PERFEITO)
+       ============================================== */
+    .modal-overlay {
+        padding: max(10px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)) !important;
+        align-items: center !important;
+        justify-content: center !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+
+    .modal-content,
+    .modal-content.modal-lg,
+    .modal-content.modal-xl {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: calc(100dvh - 20px) !important;
+        max-height: calc(100vh - 20px) !important;
+        margin: auto !important;
+        border-radius: 14px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        min-height: 0 !important;
+    }
+
+    .modal-header {
+        padding: 14px 16px !important;
+        flex-shrink: 0 !important;
+    }
+    .modal-header h2 {
+        font-size: 1.15rem !important;
+    }
+    .close-modal-btn {
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        min-height: 38px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        font-size: 1.8rem !important;
+    }
+
+    .modal-body {
+        padding: 14px 14px !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        overscroll-behavior: contain !important;
+    }
+
+    .modal-footer {
+        padding: 12px 14px !important;
+        flex-direction: column-reverse !important;
+        gap: 8px !important;
+        flex-shrink: 0 !important;
+    }
+    .modal-footer .btn {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 12px !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* Linhas de Formulário quebram verticalmente com precisão */
+    .form-group-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        margin-bottom: 12px !important;
+    }
+    .form-group-row .form-group,
+    .form-group-row .form-group.flex-2,
+    .form-group-row .form-group.col-peso,
+    .form-group-row .form-group.col-linha {
+        flex: none !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+    /* Font-size de 16px impede o auto-zoom do iOS Safari */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px !important;
+        padding: 10px 12px !important;
+    }
+
+    /* Box de Ração no Mobile */
+    .box-racao-crm {
+        padding: 12px !important;
+        margin: 12px 0 !important;
+        border-radius: 10px !important;
+    }
+    .box-racao-title {
+        font-size: 0.9rem !important;
+    }
+    .chips-peso-container {
+        display: flex !important;
+        gap: 6px !important;
+        flex-wrap: wrap !important;
+        margin-top: 8px !important;
+    }
+    .btn-chip-peso {
+        flex: 1 1 calc(25% - 6px) !important;
+        min-height: 38px !important;
+        font-size: 0.85rem !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 6px !important;
+    }
+}

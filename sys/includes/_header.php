@@ -1,7 +1,12 @@
 <header class="header">
-    <div class="header-search">
+    <div class="header-left" style="display:flex;align-items:center;gap:12px;">
+        <button type="button" id="sidebar-toggle-btn" class="mobile-menu-btn" aria-label="Abrir Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="header-search">
         <i class="fas fa-search"></i>
         <input type="text" placeholder="Buscar por cliente, pet...">
+    </div>
     </div>
     <div class="header-profile">
         <?php

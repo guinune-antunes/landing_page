@@ -5,7 +5,7 @@
         <?php include 'includes/_header.php'; ?>
 
         <main class="main-content">
-            <div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="page-header page-header-produtos">
                 <div>
                     <h1 class="main-title">Estoque & Produtos</h1>
                     <p style="color: #777;">Gerencie os itens disponíveis para venda no PDV.</p>
@@ -17,7 +17,7 @@
 
             <div class="widget-card">
                 
-                <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                <div class="quick-filter-bar">
                     <button class="btn-quick-filter" data-filter="todos" style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: 0.3s; opacity: 1;">
                         <i class="fas fa-list"></i> Todos
                     </button>
@@ -32,7 +32,9 @@
                     </button>
                 </div>
 
-                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                <div class="mobile-scroll-indicator" style="display:none;"><i class="fas fa-arrows-left-right"></i> Deslize a tabela para ver preços e ações</div>
+                <div class="table-container mobile-table-scroll" style="overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; border-radius: 8px;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; min-width: 650px;">
                     <thead>
                         <tr style="text-align: left; border-bottom: 2px solid #eee;">
                             <th style="padding: 10px;">Produto</th>
@@ -100,6 +102,7 @@
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
             </div>
         </main>
     </div>
@@ -117,7 +120,7 @@
                 
                 <h4 class="modal-section-title">Dados Básicos</h4>
                 <div class="form-group-row">
-                    <div class="form-group" style="flex: 2;">
+                    <div class="form-group flex-2">
                         <label>Nome do Produto *</label>
                         <input type="text" id="prod-nome" required placeholder="Ex: Ração Premier Raças Grandes 15kg">
                     </div>
@@ -157,7 +160,7 @@
                     </p>
 
                     <div class="form-group-row" style="margin-bottom: 10px;">
-                        <div class="form-group" style="flex: 1.2;">
+                        <div class="form-group col-peso">
                             <label class="box-racao-label">Peso da Embalagem (Kg) *</label>
                             <input type="number" step="0.1" id="prod-peso" placeholder="Ex: 15.0" class="input-racao-highlight">
                             
@@ -173,7 +176,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group" style="flex: 1.5;">
+                        <div class="form-group col-linha">
                             <label class="box-racao-label">Linha / Qualidade da Ração</label>
                             <select id="prod-linha-racao" class="select-racao-highlight">
                                 <option value="3850">⭐ Super Premium (Premier, Royal Canin, Hills)</option>
@@ -218,7 +221,7 @@
 
                 <h4 class="modal-section-title">Logística & Validade</h4>
                 <div class="form-group-row">
-                    <div class="form-group" style="flex: 2;">
+                    <div class="form-group flex-2">
                         <label>Fornecedor</label>
                         <input type="text" id="prod-fornecedor" placeholder="Nome do distribuidor/fabricante">
                     </div>

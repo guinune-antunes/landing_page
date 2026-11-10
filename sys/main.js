@@ -1253,4 +1253,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     initThemeToggle();
 
+
+    // ===================================================
+    // 7. MENU LATERAL RESPONSIVO (DRAWER MOBILE)
+    // ===================================================
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const sidebarCloseBtn = document.getElementById('sidebar-close-btn');
+    const sidebarMenu = document.getElementById('sidebar-menu') || document.querySelector('.sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    const openSidebar = () => {
+        if (sidebarMenu) sidebarMenu.classList.add('open');
+        if (sidebarOverlay) sidebarOverlay.classList.add('active');
+        document.body.classList.add('sidebar-open');
+    };
+
+    const closeSidebar = () => {
+        if (sidebarMenu) sidebarMenu.classList.remove('open');
+        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+        document.body.classList.remove('sidebar-open');
+    };
+
+    if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', openSidebar);
+    if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
+    if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+    // Fecha ao clicar em um link no mobile
+    document.querySelectorAll('.sidebar-nav .nav-item').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 768) closeSidebar();
+        });
+    });
+
 });

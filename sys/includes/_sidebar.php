@@ -52,12 +52,16 @@ if (!function_exists('temPermissao')) {
 }
 ?>
 
-<aside class="sidebar">
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<aside class="sidebar" id="sidebar-menu">
     <div class="sidebar-header">
-        <i class="fas fa-paw"></i>
-        <span>
-            <?php echo ($cargo === 'Admin') ? 'Admin SaaS' : 'PetCRM'; ?>
-        </span>
+        <div class="sidebar-brand" style="display:flex;align-items:center;">
+            <i class="fas fa-paw"></i>
+            <span>
+                <?php echo ($cargo === 'Admin') ? 'Admin SaaS' : 'PetCRM'; ?>
+            </span>
+        </div>
+        <button type="button" class="sidebar-close-btn" id="sidebar-close-btn" aria-label="Fechar menu">&times;</button>
     </div>
 
     <nav class="sidebar-nav">
