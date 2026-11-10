@@ -2593,3 +2593,878 @@ html, body {
     border-color: rgba(59, 130, 246, 0.3);
     color: #cbd5e1;
 }
+
+
+/* ===================================================
+   AGENDA & ATENDIMENTOS DE NÍVEL ERP (RETRABALHO COMPLETO)
+   =================================================== */
+
+/* Top Header da Agenda */
+.agenda-top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+.agenda-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Tabs do Alternador de Visão (Semanal vs Fila do Dia) */
+.view-switcher-tabs {
+    display: inline-flex;
+    background: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 30px;
+    padding: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.view-tab-btn {
+    background: transparent;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 24px;
+    font-size: 0.86rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: all 0.22s ease;
+    outline: none;
+}
+.view-tab-btn:hover {
+    color: var(--text-dark);
+}
+.view-tab-btn.active {
+    background: var(--color-primary);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(26, 188, 156, 0.35);
+}
+.view-tab-btn .badge-count {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 2px;
+}
+.view-tab-btn:not(.active) .badge-count {
+    background: rgba(148, 163, 184, 0.25);
+    color: var(--text-muted);
+}
+.btn-novo-agendamento-top {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 18px !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    border-radius: 10px !important;
+}
+
+/* Mini-Dashboard de KPIs do Dia */
+.agenda-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+}
+.agenda-kpi-card {
+    background: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.agenda-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+.kpi-icon-box {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.kpi-icon-blue { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+.kpi-icon-amber { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+.kpi-icon-purple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+.kpi-icon-green { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+
+.kpi-info {
+    display: flex;
+    flex-direction: column;
+}
+.kpi-label {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.kpi-val {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    line-height: 1.2;
+}
+
+/* Barra de Navegação e Filtros da Agenda */
+.agenda-control-toolbar {
+    background: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+.date-navigator-cluster {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-nav-arrow {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-dark);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.btn-nav-arrow:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(26, 188, 156, 0.06);
+}
+.btn-nav-hoje {
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-dark);
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.btn-nav-hoje:hover,
+.btn-nav-hoje.active {
+    border-color: var(--color-primary);
+    background: rgba(26, 188, 156, 0.12);
+    color: var(--color-primary);
+}
+.date-range-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-left: 6px;
+}
+
+.agenda-filters-cluster {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.agenda-filter-select {
+    padding: 7px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-main);
+    color: var(--text-dark);
+    font-size: 0.84rem;
+    outline: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+.filter-search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 7px 12px;
+}
+.filter-search-box i {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.filter-search-box input {
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--text-dark);
+    font-size: 0.84rem;
+    width: 140px;
+}
+
+/* ===================================================
+   GRADE SEMANAL MODERNA (CALENDAR TIMELINE)
+   =================================================== */
+
+.modern-calendar-wrapper {
+    background: var(--bg-widget) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 14px !important;
+    height: calc(100vh - 300px) !important;
+    min-height: 600px !important;
+    overflow-y: auto !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05) !important;
+    position: relative !important;
+}
+
+/* Coluna de Horas */
+.modern-time-column {
+    width: 65px;
+    border-right: 1px solid var(--border-color);
+    padding-top: 50px;
+    background: var(--bg-widget);
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    flex-shrink: 0;
+}
+.time-col-header {
+    height: 50px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+.time-slot-item {
+    height: 64px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding-right: 10px;
+    position: relative;
+}
+.time-label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    transform: translateY(-8px);
+}
+
+/* Grade dos Dias */
+.modern-calendar-grid {
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(150px, 1fr)) !important;
+    flex-grow: 1 !important;
+}
+.day-column {
+    border-left: 1px solid var(--border-color);
+    position: relative;
+    background: var(--bg-widget);
+    transition: background-color 0.2s;
+}
+.day-column.current-day-col {
+    background: rgba(26, 188, 156, 0.02);
+}
+
+/* Cabeçalho do Dia */
+.day-header-modern {
+    height: 50px;
+    padding: 6px 10px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    background: var(--bg-widget);
+    z-index: 15;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.day-header-modern.is-today {
+    background: rgba(26, 188, 156, 0.08);
+    border-bottom: 2px solid var(--color-primary);
+}
+.day-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.day-weekday {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    text-transform: uppercase;
+}
+.day-number-circle {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+.day-header-modern.is-today .day-number-circle {
+    background: var(--color-primary);
+    color: #ffffff;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+}
+.day-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+.badge-hoje-pill {
+    background: var(--color-primary);
+    color: #ffffff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+.day-pets-counter {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* Palco de Agendamentos do Dia */
+.appointments-stage {
+    position: relative;
+    height: calc(11 * 64px); /* 11 horas * 64px = 704px */
+    width: 100%;
+    background-image: linear-gradient(to bottom, var(--border-color) 1px, transparent 1px);
+    background-size: 100% 64px; /* Linha de hora em hora sutil */
+    cursor: cell;
+}
+
+/* Marcador da Hora Atual (Linha Vermelha / Neon "AGORA") */
+.current-time-marker {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 25;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+}
+.marker-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    position: absolute;
+    left: -5px;
+    animation: pulseMarker 1.8s infinite;
+}
+.marker-line {
+    width: 100%;
+    height: 2px;
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+}
+.marker-label {
+    position: absolute;
+    right: 6px;
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    transform: translateY(-8px);
+}
+@keyframes pulseMarker {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ===================================================
+   CARDS DE AGENDAMENTO MODERNOS (GRADE SEMANAL)
+   =================================================== */
+
+.modern-appointment-card {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, z-index 0.2s;
+    display: flex;
+    text-align: left;
+    box-sizing: border-box;
+    z-index: 5;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.modern-appointment-card:hover {
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+    z-index: 30;
+}
+.card-accent-bar {
+    width: 4px;
+    flex-shrink: 0;
+}
+.card-content-inner {
+    padding: 5px 8px;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+}
+.card-header-time-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+.card-time-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+}
+.card-status-pill {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+.status-pill-agendado { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
+.status-pill-em-andamento { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+.status-pill-concluido { background: rgba(16, 185, 129, 0.25); color: #34d399; }
+.status-pill-remarcado { background: rgba(148, 163, 184, 0.25); color: #94a3b8; }
+
+.card-pet-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.card-pet-name {
+    font-size: 0.84rem;
+    font-weight: 700;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.card-pet-breed {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.card-service-desc {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+}
+.card-footer-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.65);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Temas Visuais dos Serviços (Gradientes Refinados) */
+.service-banho {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.85), rgba(14, 116, 144, 0.9));
+}
+.service-tosa {
+    background: linear-gradient(135deg, rgba(126, 34, 206, 0.85), rgba(109, 40, 217, 0.9));
+}
+.service-consulta {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.85), rgba(13, 148, 136, 0.9));
+}
+.service-vacina {
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.85), rgba(180, 83, 9, 0.9));
+}
+.service-cirurgia {
+    background: linear-gradient(135deg, rgba(225, 29, 72, 0.85), rgba(190, 18, 60, 0.9));
+}
+.service-default {
+    background: linear-gradient(135deg, rgba(71, 85, 105, 0.85), rgba(51, 65, 85, 0.9));
+}
+
+/* ===================================================
+   VISÃO 2: FILA DO DIA / ATENDIMENTOS EM LISTA
+   =================================================== */
+
+.fila-dia-container {
+    background: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+.fila-dia-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.fila-dia-header h3 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.fila-dia-header p {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+.fila-header-badge {
+    background: rgba(26, 188, 156, 0.12);
+    color: var(--color-primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 20px;
+}
+
+.fila-empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--text-muted);
+}
+.fila-empty-state i {
+    font-size: 3rem;
+    color: var(--color-primary);
+    margin-bottom: 12px;
+    opacity: 0.8;
+}
+.fila-empty-state h4 {
+    font-size: 1.2rem;
+    color: var(--text-dark);
+    margin: 0 0 6px 0;
+}
+
+.fila-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+/* Card Individual da Fila do Dia */
+.fila-card-item {
+    background: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 110px 1.2fr 1.2fr auto;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.22s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+.fila-card-item:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+.fila-col-time {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.fila-time-box strong {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    display: block;
+    line-height: 1.1;
+}
+.fila-time-box small {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.fila-col-pet {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.pet-avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+.fila-pet-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0 0 2px 0;
+}
+.fila-pet-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: block;
+}
+.fila-tutor-meta {
+    font-size: 0.82rem;
+    color: var(--text-dark);
+    margin-top: 4px;
+}
+
+.fila-col-service {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.fila-service-badge {
+    padding-left: 8px;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+.fila-prof-info {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+.fila-obs-info {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+
+/* Coluna de Ações Rápidas */
+.fila-col-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.btn-fila-action {
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    line-height: 1;
+}
+.btn-fila-whatsapp {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16a34a;
+    border-color: rgba(34, 197, 94, 0.3);
+}
+.btn-fila-whatsapp:hover {
+    background: #16a34a;
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(34, 197, 94, 0.35);
+}
+.btn-fila-pdv {
+    background: rgba(14, 165, 233, 0.12);
+    color: #0284c7;
+    border-color: rgba(14, 165, 233, 0.3);
+}
+.btn-fila-pdv:hover {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(14, 165, 233, 0.35);
+}
+.btn-fila-start {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+.btn-fila-start:hover {
+    background: #d97706;
+    color: #ffffff;
+}
+.btn-fila-finish {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+.btn-fila-finish:hover {
+    background: #059669;
+    color: #ffffff;
+}
+.btn-fila-edit {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-dark);
+    border-color: var(--border-color);
+}
+.btn-fila-edit:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+}
+.fila-status-actions-group {
+    display: inline-flex;
+    gap: 6px;
+}
+
+/* ===================================================
+   RESPONSIVIDADE DA AGENDA (< 992px e < 768px)
+   =================================================== */
+
+@media (max-width: 992px) {
+    .fila-card-item {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .fila-col-actions {
+        justify-content: flex-start;
+        border-top: 1px solid var(--border-color);
+        padding-top: 10px;
+    }
+    .agenda-control-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .agenda-filters-cluster {
+        width: 100%;
+    }
+    .agenda-filter-select, .filter-search-box {
+        flex: 1 1 calc(50% - 6px);
+    }
+}
+
+@media (max-width: 768px) {
+    .modern-calendar-wrapper {
+        height: 70vh !important;
+        min-height: 480px !important;
+    }
+    .view-switcher-tabs {
+        width: 100%;
+    }
+    .view-tab-btn {
+        flex: 1;
+        justify-content: center;
+    }
+    .btn-novo-agendamento-top {
+        width: 100%;
+        justify-content: center;
+    }
+    .modern-calendar-grid {
+        grid-template-columns: repeat(7, minmax(130px, 1fr)) !important;
+    }
+}
+
+/* Dark Mode para a Nova Agenda */
+.dark-theme .agenda-kpi-card,
+.dark-theme .agenda-control-toolbar,
+.dark-theme .modern-calendar-wrapper,
+.dark-theme .fila-dia-container,
+.dark-theme .fila-card-item,
+.dark-theme .modern-time-column,
+.dark-theme .day-header-modern,
+.dark-theme .day-column {
+    background-color: var(--bg-widget) !important;
+    border-color: var(--border-color) !important;
+}
+.dark-theme .day-column.current-day-col {
+    background: rgba(26, 188, 156, 0.04) !important;
+}
+.dark-theme .appointments-stage {
+    background-image: linear-gradient(to bottom, rgba(40, 58, 92, 0.6) 1px, transparent 1px);
+}
+.dark-theme .agenda-filter-select,
+.dark-theme .filter-search-box {
+    background: #0e172a;
+    border-color: #283a5c;
+    color: #f1f5f9;
+}
+.dark-theme .btn-nav-arrow,
+.dark-theme .btn-nav-hoje {
+    color: #cbd5e1;
+    border-color: #283a5c;
+}
+.dark-theme .date-range-badge {
+    background: #0e172a;
+    color: #f1f5f9;
+}
+.dark-theme .view-switcher-tabs {
+    background: #0e172a;
+    border-color: #283a5c;
+}
+.dark-theme .view-tab-btn {
+    color: #94a3b8;
+}
+.dark-theme .view-tab-btn.active {
+    color: #ffffff;
+}

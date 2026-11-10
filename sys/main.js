@@ -2,13 +2,13 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("Main.js carregado com sucesso.");
 
     // ===================================================
-    // 1. LÓGICA DO MODAL DA AGENDA (COMPLETA E ROBUSTA)
+    // 1. LÓGICA DO MODAL DA AGENDA (RETRABALHO COMPLETO ERP)
     // ===================================================
     const addAppointmentBtn = document.getElementById('add-appointment-btn');
     const appointmentModal = document.getElementById('appointment-modal');
     
     if (addAppointmentBtn && appointmentModal) {
-        console.log("Módulo Agenda inicializado com sucesso.");
+        console.log("Módulo Agenda moderna inicializado com sucesso.");
 
         const calendarGrid     = document.querySelector('.calendar-grid');
         const modalTitle       = document.getElementById('modal-app-title') || appointmentModal.querySelector('.modal-header h2');
@@ -30,6 +30,92 @@ document.addEventListener('DOMContentLoaded', function() {
         const btnRemarcar      = document.getElementById('btn-remarcar-app');
         const saveBtn          = document.getElementById('save-app-btn');
         const cancelBtn        = document.getElementById('cancel-app-btn');
+
+        // Alternador de Visões: Grade Semanal vs Fila do Dia
+        const tabSemana = document.getElementById('tab-view-semana');
+        const tabFila   = document.getElementById('tab-view-fila');
+        const containerSemana = document.getElementById('container-visao-semana');
+        const containerFila   = document.getElementById('container-visao-fila');
+
+        function setAgendaView(view) {
+            if (view === 'fila') {
+                if (tabFila) tabFila.classList.add('active');
+                if (tabSemana) tabSemana.classList.remove('active');
+                if (containerFila) containerFila.style.display = 'block';
+                if (containerSemana) containerSemana.style.display = 'none';
+                localStorage.setItem('petcrm_agenda_view', 'fila');
+            } else {
+                if (tabSemana) tabSemana.classList.add('active');
+                if (tabFila) tabFila.classList.remove('active');
+                if (containerSemana) containerSemana.style.display = 'block';
+                if (containerFila) containerFila.style.display = 'none';
+                localStorage.setItem('petcrm_agenda_view', 'semana');
+            }
+        }
+
+        if (tabSemana && tabFila) {
+            tabSemana.addEventListener('click', () => setAgendaView('semana'));
+            tabFila.addEventListener('click', () => setAgendaView('fila'));
+
+            const savedView = localStorage.getItem('petcrm_agenda_view');
+            if (savedView === 'fila') {
+                setAgendaView('fila');
+            }
+        }
+
+        // Filtros em tempo real na Agenda (Profissional, Serviço, Status, Busca)
+        const filtroProf  = document.getElementById('filtro-agenda-profissional');
+        const filtroServ  = document.getElementById('filtro-agenda-servico');
+        const filtroStat  = document.getElementById('filtro-agenda-status');
+        const filtroBusca = document.getElementById('filtro-agenda-busca');
+
+        function aplicarFiltrosAgenda() {
+            const valProf  = filtroProf ? filtroProf.value.toLowerCase().trim() : '';
+            const valServ  = filtroServ ? filtroServ.value.toLowerCase().trim() : '';
+            const valStat  = filtroStat ? filtroStat.value.toLowerCase().trim() : '';
+            const valBusca = filtroBusca ? filtroBusca.value.toLowerCase().trim() : '';
+
+            // Filtra cards na grade semanal
+            document.querySelectorAll('.modern-appointment-card, .appointment-card').forEach(card => {
+                let match = true;
+                const cProfId  = (card.dataset.profissionalId || '').toLowerCase();
+                const cServ    = (card.dataset.servico || '').toLowerCase();
+                const cStat    = (card.dataset.status || '').toLowerCase();
+                const cPet     = (card.dataset.petNome || '').toLowerCase();
+                const cCliente = (card.dataset.clienteNome || '').toLowerCase();
+                const cRaca    = (card.dataset.petRaca || '').toLowerCase();
+
+                if (valProf && cProfId !== valProf) match = false;
+                if (valServ && !cServ.includes(valServ)) match = false;
+                if (valStat && cStat !== valStat) match = false;
+                if (valBusca && !cPet.includes(valBusca) && !cCliente.includes(valBusca) && !cRaca.includes(valBusca)) match = false;
+
+                card.style.display = match ? '' : 'none';
+            });
+
+            // Filtra itens na fila diária
+            document.querySelectorAll('.fila-card-item').forEach(item => {
+                let match = true;
+                const iProfId  = (item.dataset.profissionalId || '').toLowerCase();
+                const iServ    = (item.dataset.servico || '').toLowerCase();
+                const iStat    = (item.dataset.status || '').toLowerCase();
+                const iPet     = (item.dataset.petNome || '').toLowerCase();
+                const iCliente = (item.dataset.clienteNome || '').toLowerCase();
+                const iRaca    = (item.dataset.petRaca || '').toLowerCase();
+
+                if (valProf && iProfId !== valProf) match = false;
+                if (valServ && !iServ.includes(valServ)) match = false;
+                if (valStat && iStat !== valStat) match = false;
+                if (valBusca && !iPet.includes(valBusca) && !iCliente.includes(valBusca) && !iRaca.includes(valBusca)) match = false;
+
+                item.style.display = match ? '' : 'none';
+            });
+        }
+
+        if (filtroProf) filtroProf.addEventListener('change', aplicarFiltrosAgenda);
+        if (filtroServ) filtroServ.addEventListener('change', aplicarFiltrosAgenda);
+        if (filtroStat) filtroStat.addEventListener('change', aplicarFiltrosAgenda);
+        if (filtroBusca) filtroBusca.addEventListener('input', aplicarFiltrosAgenda);
 
         // Carrega pets do cliente via API
         function carregarPets(clienteId, petIdSelecionado = null) {
@@ -81,8 +167,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Abrir Modal para NOVO Agendamento
-        function openModalNovo() {
+        // Abrir Modal para NOVO Agendamento (permite pré-preencher data e hora ao clicar na grade)
+        function openModalNovo(defaultDate = null, defaultTime = null) {
             if (appointmentForm) appointmentForm.reset();
             if (appIdInput) appIdInput.value = '';
 
@@ -105,10 +191,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const hoje = new Date().toISOString().split('T')[0];
             if (dateInput) {
                 dateInput.removeAttribute('min');
-                dateInput.value = hoje;
+                dateInput.value = defaultDate || hoje;
             }
-            if (timeInput && !timeInput.value) {
-                timeInput.value = '09:00';
+            if (timeInput) {
+                timeInput.value = defaultTime || '09:00';
             }
 
             appointmentModal.style.display = 'flex';
@@ -120,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const appId = dados.id;
 
             if (appIdInput) appIdInput.value = appId;
-            if (modalTitle) modalTitle.textContent = 'Detalhes do Agendamento';
+            if (modalTitle) modalTitle.textContent = 'Detalhes do Atendimento';
 
             if (clientSelect) clientSelect.value = dados.clienteId || '';
             if (serviceSelect) serviceSelect.value = dados.servico || '';
@@ -135,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Status Badge
             const status = dados.status || 'Agendado';
             if (statusContainer && statusPill) {
-                statusContainer.style.display = 'block';
+                statusContainer.style.display = 'flex';
                 statusPill.textContent = status;
                 if (status === 'Concluído') {
                     statusPill.style.backgroundColor = '#d4edda';
@@ -146,9 +232,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else if (status === 'Cancelado') {
                     statusPill.style.backgroundColor = '#f8d7da';
                     statusPill.style.color = '#721c24';
+                } else if (status === 'Em Andamento') {
+                    statusPill.style.backgroundColor = '#fef3c7';
+                    statusPill.style.color = '#92400e';
                 } else {
                     statusPill.style.backgroundColor = '#cce5ff';
                     statusPill.style.color = '#004085';
+                }
+            }
+
+            // Atalho direto de WhatsApp do Tutor
+            const btnWhatsDirect = document.getElementById('btn-modal-whats-direct');
+            if (btnWhatsDirect) {
+                const rawTel = (dados.clienteTel || '').replace(/\D/g, '');
+                if (rawTel.length >= 10) {
+                    const petNome = dados.petNome || 'seu pet';
+                    const msg = encodeURIComponent(`Olá! Estamos entrando em contato referente ao agendamento de ${petNome} no Pet Shop.`);
+                    btnWhatsDirect.href = `https://api.whatsapp.com/send?phone=55${rawTel}&text=${msg}`;
+                    btnWhatsDirect.style.display = 'inline-flex';
+                } else {
+                    btnWhatsDirect.style.display = 'none';
                 }
             }
 
@@ -187,18 +290,69 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.target === appointmentModal) closeModal();
         });
 
-        // Botão Novo Agendamento
-        addAppointmentBtn.addEventListener('click', openModalNovo);
+        // Botão Novo Agendamento do Cabeçalho
+        addAppointmentBtn.addEventListener('click', () => openModalNovo());
 
-        // Delegação de clique nos Cards de Agendamento
-        if (calendarGrid) {
-            calendarGrid.addEventListener('click', function(e) {
-                const card = e.target.closest('.appointment-card');
-                if (card) {
-                    openModalEditar(card);
-                }
+        // Delegação de clique nos Cards de Agendamento (Grade Semanal e Fila do Dia)
+        document.addEventListener('click', function(e) {
+            const card = e.target.closest('.modern-appointment-card, .appointment-card, .btn-abrir-modal-editar');
+            if (card) {
+                if (e.target.closest('a, .btn-mudar-status-rapido')) return;
+                openModalEditar(card);
+            }
+        });
+
+        // Clique em horário livre na grade semanal para criar agendamento pré-preenchido
+        document.querySelectorAll('.appointments-stage').forEach(stage => {
+            stage.addEventListener('click', function(e) {
+                if (e.target.closest('.modern-appointment-card, .appointment-card')) return;
+                const dayCol = this.closest('.day-column');
+                const clickedDate = dayCol ? dayCol.dataset.date : null;
+
+                const rect = this.getBoundingClientRect();
+                const offsetY = e.clientY - rect.top;
+                const slotHour = Math.min(18, Math.max(8, Math.floor(offsetY / 64) + 8));
+                const slotMin = Math.floor((offsetY % 64) / 16) * 15;
+                const clickedTime = `${String(slotHour).padStart(2, '0')}:${String(slotMin).padStart(2, '0')}`;
+
+                openModalNovo(clickedDate, clickedTime);
             });
-        }
+        });
+
+        // Ação rápida de mudança de status (Iniciar / Concluir direto na Fila)
+        document.addEventListener('click', function(e) {
+            const btnRapido = e.target.closest('.btn-mudar-status-rapido');
+            if (!btnRapido) return;
+
+            const appId = btnRapido.dataset.id;
+            const novoStatus = btnRapido.dataset.status;
+            if (!appId || !novoStatus) return;
+
+            if (!confirm(`Deseja alterar o status para "${novoStatus}"?`)) return;
+
+            btnRapido.disabled = true;
+            btnRapido.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            fetch('cancelar_agendamento.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: appId, status: novoStatus })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    location.reload();
+                } else {
+                    alert(res.message || 'Erro ao atualizar status.');
+                    btnRapido.disabled = false;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Erro de comunicação com o servidor.');
+                btnRapido.disabled = false;
+            });
+        });
 
         // SALVAR (Novo ou Atualizar)
         if (saveBtn) {
