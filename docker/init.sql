@@ -430,6 +430,7 @@ CREATE TABLE `produtos` (
   `data_fabricacao` date DEFAULT NULL,
   `data_validade` date DEFAULT NULL,
   `categoria` enum('Geral','Ração','Medicamento','Vacina','Higiene & Estética','Acessórios','Outros') NOT NULL DEFAULT 'Geral',
+  `imagem` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uidx_inst_codigo_barras` (`instituicao_id`,`codigo_barras`),
   KEY `fk_produtos_instituicoes` (`instituicao_id`),
