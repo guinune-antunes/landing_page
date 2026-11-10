@@ -235,3 +235,4 @@ curl -X POST "http://localhost/landing_page/sys/api_erp.php?action=atualizar_pet
 
 ### 6️⃣ `GET /sys/api_erp.php?action=produtos`
 Lista todas as rações cadastradas na loja com suas especificações calóricas e peso da embalagem, permitindo que o ERP mapeie os códigos de barras e SKUs.
+

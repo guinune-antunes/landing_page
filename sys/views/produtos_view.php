@@ -109,13 +109,13 @@
     <div class="modal-content modal-lg">
         <div class="modal-header">
             <h2 id="modal-titulo">Cadastrar Produto</h2>
-            <button class="close-modal-btn" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            <button type="button" class="close-modal-btn" aria-label="Fechar">&times;</button>
         </div>
         <div class="modal-body">
-            <form id="produto-form">
+            <form id="produto-form" style="width: 100%;">
                 <input type="hidden" id="prod-id">
                 
-                <h4 style="margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">Dados Básicos</h4>
+                <h4 class="modal-section-title">Dados Básicos</h4>
                 <div class="form-group-row">
                     <div class="form-group" style="flex: 2;">
                         <label>Nome do Produto *</label>
@@ -147,35 +147,35 @@
                 </div>
 
                 <!-- BOX INTELIGENTE DO CRM DE RAÇÃO (DESIGN SIMPLES PARA USUÁRIOS LEIGOS) -->
-                <div id="box-racao-crm" style="display: none; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 12px; padding: 16px; margin: 15px 0;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <span style="font-size: 1.2rem; color: #16a34a;"><i class="fas fa-bone"></i></span>
-                        <strong style="color: #14532d; font-size: 1rem;">Configuração Automática para o CRM de Reposição</strong>
+                <div id="box-racao-crm" class="box-racao-crm" style="display: none;">
+                    <div class="box-racao-header">
+                        <span class="box-racao-icon"><i class="fas fa-bone"></i></span>
+                        <strong class="box-racao-title">Configuração Automática para o CRM de Reposição</strong>
                     </div>
-                    <p style="color: #475569; font-size: 0.85rem; margin: 0 0 12px 0;">
+                    <p class="box-racao-subtitle">
                         O sistema calculará sozinho quando a ração vai acabar para alertar a sua equipe no momento certo.
                     </p>
 
                     <div class="form-group-row" style="margin-bottom: 10px;">
                         <div class="form-group" style="flex: 1.2;">
-                            <label style="font-weight: 600; color: #166534;">Peso da Embalagem (Kg) *</label>
-                            <input type="number" step="0.1" id="prod-peso" placeholder="Ex: 15.0" style="border: 2px solid #86efac; border-radius: 8px; padding: 8px 10px;">
+                            <label class="box-racao-label">Peso da Embalagem (Kg) *</label>
+                            <input type="number" step="0.1" id="prod-peso" placeholder="Ex: 15.0" class="input-racao-highlight">
                             
                             <!-- Botões de 1 clique para pessoas leigas -->
-                            <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px;">
-                                <button type="button" class="btn-chip-peso" data-kg="1" style="background:#e2e8f0; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer;">1 kg</button>
-                                <button type="button" class="btn-chip-peso" data-kg="3" style="background:#e2e8f0; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer;">3 kg</button>
-                                <button type="button" class="btn-chip-peso" data-kg="7.5" style="background:#e2e8f0; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer;">7.5 kg</button>
-                                <button type="button" class="btn-chip-peso" data-kg="10" style="background:#e2e8f0; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer;">10 kg</button>
-                                <button type="button" class="btn-chip-peso" data-kg="12" style="background:#e2e8f0; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer;">12 kg</button>
-                                <button type="button" class="btn-chip-peso" data-kg="15" style="background:#16a34a; color:white; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer; font-weight:bold;">15 kg</button>
-                                <button type="button" class="btn-chip-peso" data-kg="20" style="background:#e2e8f0; border:none; padding:3px 8px; border-radius:12px; font-size:0.75rem; cursor:pointer;">20 kg</button>
+                            <div class="chips-peso-container">
+                                <button type="button" class="btn-chip-peso" data-kg="1">1 kg</button>
+                                <button type="button" class="btn-chip-peso" data-kg="3">3 kg</button>
+                                <button type="button" class="btn-chip-peso" data-kg="7.5">7.5 kg</button>
+                                <button type="button" class="btn-chip-peso" data-kg="10">10 kg</button>
+                                <button type="button" class="btn-chip-peso" data-kg="12">12 kg</button>
+                                <button type="button" class="btn-chip-peso active" data-kg="15">15 kg</button>
+                                <button type="button" class="btn-chip-peso" data-kg="20">20 kg</button>
                             </div>
                         </div>
 
                         <div class="form-group" style="flex: 1.5;">
-                            <label style="font-weight: 600; color: #166534;">Linha / Qualidade da Ração</label>
-                            <select id="prod-linha-racao" style="border: 2px solid #86efac; border-radius: 8px; padding: 8px 10px;">
+                            <label class="box-racao-label">Linha / Qualidade da Ração</label>
+                            <select id="prod-linha-racao" class="select-racao-highlight">
                                 <option value="3850">⭐ Super Premium (Premier, Royal Canin, Hills)</option>
                                 <option value="3700">✨ Premium Especial (Golden, Special Dog)</option>
                                 <option value="3800">🐱 Ração para Gatos</option>
@@ -183,15 +183,15 @@
                                 <option value="3500">🥩 Standard / Manutenção Econômica</option>
                                 <option value="manual">⚙️ Digitar Calorias Manualmente</option>
                             </select>
-                            <small style="color: #64748b; font-size: 0.78rem; display: block; margin-top: 4px;">
+                            <small class="box-racao-hint">
                                 💡 As calorias são calculadas sozinhas. Usuários leigos não precisam consultar tabela nutricional!
                             </small>
                         </div>
                     </div>
 
                     <div id="box-calorias-manual" style="display: none; margin-top: 8px;">
-                        <label style="font-size: 0.82rem; color: #475569;">Energia Metabolizável Manual (kcal/kg):</label>
-                        <input type="number" step="10" id="prod-energia" value="3850" style="width: 150px; padding: 6px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.85rem;">
+                        <label class="box-racao-hint" style="font-weight: 500;">Energia Metabolizável Manual (kcal/kg):</label>
+                        <input type="number" step="10" id="prod-energia" value="3850" class="input-racao-highlight" style="width: 160px; font-size: 0.85rem;">
                     </div>
                 </div>
 
@@ -200,7 +200,7 @@
                     <textarea id="prod-descricao" rows="2"></textarea>
                 </div>
 
-                <h4 style="margin-bottom:10px; margin-top:20px; border-bottom:1px solid #eee; padding-bottom:5px;">Financeiro e Estoque</h4>
+                <h4 class="modal-section-title">Financeiro e Estoque</h4>
                 <div class="form-group-row">
                     <div class="form-group">
                         <label>Custo de Compra (R$)</label>
@@ -216,7 +216,7 @@
                     </div>
                 </div>
 
-                <h4 style="margin-bottom:10px; margin-top:20px; border-bottom:1px solid #eee; padding-bottom:5px;">Logística & Validade</h4>
+                <h4 class="modal-section-title">Logística & Validade</h4>
                 <div class="form-group-row">
                     <div class="form-group" style="flex: 2;">
                         <label>Fornecedor</label>
@@ -270,19 +270,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Sincroniza estado ativo dos chips de peso
+    function atualizarChipAtivo(valorKg) {
+        document.querySelectorAll('.btn-chip-peso').forEach(b => {
+            if (valorKg && parseFloat(b.dataset.kg) === parseFloat(valorKg)) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+    }
+
     // Botões de clique rápido de peso para pessoas leigas
     document.querySelectorAll('.btn-chip-peso').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.getElementById('prod-peso').value = this.dataset.kg;
-            document.querySelectorAll('.btn-chip-peso').forEach(b => {
-                b.style.background = '#e2e8f0';
-                b.style.color = '#334155';
-                b.style.fontWeight = 'normal';
-            });
-            this.style.background = '#16a34a';
-            this.style.color = 'white';
-            this.style.fontWeight = 'bold';
+            const kg = this.dataset.kg;
+            document.getElementById('prod-peso').value = kg;
+            atualizarChipAtivo(kg);
         });
+    });
+
+    // Se o usuário digitar no input de peso, atualiza os chips
+    const inputPeso = document.getElementById('prod-peso');
+    if (inputPeso) {
+        inputPeso.addEventListener('input', function() {
+            atualizarChipAtivo(this.value);
+        });
+    }
+
+    // Fecha o modal ao clicar fora (no overlay)
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    // Fecha no ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        }
     });
 
     // Ajuste automático de calorias por linha de ração
@@ -302,6 +329,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('prod-id').value = '';
         document.getElementById('modal-titulo').innerText = 'Cadastrar Produto';
         alternarBoxRacao('Geral');
+        atualizarChipAtivo('');
         modal.style.display = 'flex';
     };
 
@@ -321,6 +349,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('prod-preco').value = p.preco_venda;
             document.getElementById('prod-estoque').value = p.quantidade_estoque;
             document.getElementById('prod-peso').value = p.tamanho_embalagem_kg || '';
+            atualizarChipAtivo(p.tamanho_embalagem_kg);
             document.getElementById('prod-fornecedor').value = p.fornecedor || '';
             document.getElementById('prod-fabricacao').value = p.data_fabricacao || '';
             document.getElementById('prod-validade').value = p.data_validade || '';
