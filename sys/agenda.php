@@ -175,8 +175,9 @@ function calcularPosicao($datetime) {
 
 function calcularAltura($inicio, $fim) {
     $duracaoMinutos = (strtotime($fim) - strtotime($inicio)) / 60;
+    if ($duracaoMinutos <= 0) $duracaoMinutos = 45;
     $alturaHora = 64;
-    return max(42, ($duracaoMinutos / 60) * $alturaHora);
+    return max(48, ($duracaoMinutos / 60) * $alturaHora);
 }
 
 // Linha do Tempo Atual (Indicador Vermelho "AGORA")
@@ -422,6 +423,7 @@ include 'includes/_sidebar.php';
                                             <div class="card-accent-bar" style="background-color: <?php echo $srvTheme['color']; ?>;"></div>
                                             
                                             <div class="card-content-inner">
+                                                <!-- Linha 1: Horário + Status -->
                                                 <div class="card-header-time-row">
                                                     <span class="card-time-badge">
                                                         <i class="far fa-clock"></i> <?php echo $horaInicioFormatada; ?> - <?php echo $horaFimFormatada; ?>
@@ -431,26 +433,54 @@ include 'includes/_sidebar.php';
                                                     </span>
                                                 </div>
 
-                                                <div class="card-pet-row">
-                                                    <strong class="card-pet-name">
+                                                <!-- Linha 2 Padrão: Nome do Pet / Nome do Dono -->
+                                                <div class="card-summary-row">
+                                                    <span class="card-pet-tutor-text" title="<?php echo htmlspecialchars($ag['pet_nome'] . ' / ' . $ag['cliente_nome']); ?>">
                                                         <i class="fas <?php echo ($ag['pet_especie'] === 'Gato') ? 'fa-cat' : 'fa-paw'; ?>"></i> 
-                                                        <?php echo htmlspecialchars($ag['pet_nome']); ?>
-                                                    </strong>
-                                                    <?php if (!empty($ag['pet_raca'])): ?>
-                                                        <small class="card-pet-breed">(<?php echo htmlspecialchars($ag['pet_raca']); ?>)</small>
+                                                        <strong class="card-pet-highlight"><?php echo htmlspecialchars($ag['pet_nome']); ?></strong>
+                                                        <span class="tutor-divider">/</span>
+                                                        <span class="card-tutor-inline"><?php echo htmlspecialchars($ag['cliente_nome']); ?></span>
+                                                    </span>
+                                                </div>
+
+                                                <!-- Bloco Expandido ao Passar o Mouse (Hover) -->
+                                                <div class="card-hover-details">
+                                                    <div class="hover-detail-item hover-service-item">
+                                                        <i class="fas <?php echo $srvTheme['icon']; ?>" style="color: <?php echo $srvTheme['color']; ?>;"></i> 
+                                                        <strong><?php echo htmlspecialchars($ag['servico']); ?></strong>
+                                                    </div>
+
+                                                    <?php if (!empty($ag['pet_raca']) || !empty($ag['pet_porte'])): ?>
+                                                        <div class="hover-detail-item">
+                                                            <i class="fas fa-tag"></i>
+                                                            <span><?php echo htmlspecialchars(trim(($ag['pet_raca'] ?? '') . ($ag['pet_porte'] ? ' (' . $ag['pet_porte'] . ')' : ''))); ?></span>
+                                                        </div>
                                                     <?php endif; ?>
-                                                </div>
 
-                                                <div class="card-service-desc">
-                                                    <i class="fas <?php echo $srvTheme['icon']; ?>" style="color: <?php echo $srvTheme['color']; ?>;"></i> 
-                                                    <span><?php echo htmlspecialchars($ag['servico']); ?></span>
-                                                </div>
+                                                    <?php if (!empty($ag['cliente_telefone'])): ?>
+                                                        <div class="hover-detail-item">
+                                                            <i class="fab fa-whatsapp" style="color: #4ade80;"></i>
+                                                            <span><?php echo htmlspecialchars($ag['cliente_telefone']); ?></span>
+                                                        </div>
+                                                    <?php endif; ?>
 
-                                                <div class="card-footer-meta">
-                                                    <span class="card-tutor-name"><i class="far fa-user"></i> <?php echo htmlspecialchars($ag['cliente_nome']); ?></span>
                                                     <?php if (!empty($ag['profissional_nome_real'] ?: $ag['profissional'])): ?>
-                                                        <span class="card-prof-name"><i class="fas fa-user-md"></i> <?php echo htmlspecialchars($ag['profissional_nome_real'] ?: $ag['profissional']); ?></span>
+                                                        <div class="hover-detail-item">
+                                                            <i class="fas fa-user-md"></i>
+                                                            <span>Prof: <?php echo htmlspecialchars($ag['profissional_nome_real'] ?: $ag['profissional']); ?></span>
+                                                        </div>
                                                     <?php endif; ?>
+
+                                                    <?php if (!empty($ag['observacoes'])): ?>
+                                                        <div class="hover-detail-item hover-obs-item">
+                                                            <i class="fas fa-comment-alt"></i>
+                                                            <em>"<?php echo htmlspecialchars($ag['observacoes']); ?>"</em>
+                                                        </div>
+                                                    <?php endif; ?>
+
+                                                    <div class="hover-action-hint">
+                                                        <i class="fas fa-external-link-alt"></i> Clique para gerenciar ou concluir
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

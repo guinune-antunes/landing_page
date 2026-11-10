@@ -3025,29 +3025,42 @@ html, body {
 
 .modern-appointment-card {
     position: absolute;
-    left: 5px;
-    right: 5px;
+    left: 4px;
+    right: 4px;
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
     transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, z-index 0.2s;
     display: flex;
     text-align: left;
     box-sizing: border-box;
     z-index: 5;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
+
+/* Coluna do dia eleva o contexto no hover para não encobrir o card expandido */
+.day-column:hover {
+    z-index: 40;
+}
+
+/* Hover no Card: abre para exibir todos os dados completos */
 .modern-appointment-card:hover {
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
-    z-index: 30;
+    height: auto !important;
+    min-height: fit-content !important;
+    overflow: visible !important;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.25);
+    z-index: 100 !important;
 }
+
 .card-accent-bar {
     width: 4px;
     flex-shrink: 0;
+    border-radius: 4px 0 0 4px;
 }
+
 .card-content-inner {
     padding: 5px 8px;
     flex: 1;
@@ -3056,21 +3069,31 @@ html, body {
     flex-direction: column;
     justify-content: flex-start;
 }
+
+/* 1. Linha do Horário e Status */
 .card-header-time-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 4px;
+    line-height: 1.2;
     margin-bottom: 2px;
 }
 .card-time-badge {
     font-size: 0.72rem;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.95);
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.card-time-badge i {
+    font-size: 0.68rem;
+    opacity: 0.85;
 }
 .card-status-pill {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     padding: 1px 6px;
     border-radius: 10px;
@@ -3078,52 +3101,108 @@ html, body {
     letter-spacing: 0.3px;
     white-space: nowrap;
 }
-.status-pill-agendado { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
-.status-pill-em-andamento { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
-.status-pill-concluido { background: rgba(16, 185, 129, 0.25); color: #34d399; }
-.status-pill-remarcado { background: rgba(148, 163, 184, 0.25); color: #94a3b8; }
+.status-pill-agendado { background: rgba(59, 130, 246, 0.3); color: #93c5fd; }
+.status-pill-em-andamento { background: rgba(245, 158, 11, 0.3); color: #fde68a; }
+.status-pill-concluido { background: rgba(16, 185, 129, 0.3); color: #a7f3d0; }
+.status-pill-remarcado { background: rgba(148, 163, 184, 0.3); color: #cbd5e1; }
 
-.card-pet-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    white-space: nowrap;
+/* 2. Linha Compacta Padrão: Nome do Pet / Nome do Dono */
+.card-summary-row {
+    line-height: 1.25;
     overflow: hidden;
+    white-space: nowrap;
     text-overflow: ellipsis;
 }
-.card-pet-name {
-    font-size: 0.84rem;
+.card-pet-tutor-text {
+    font-size: 0.78rem;
+    color: #ffffff;
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.card-pet-tutor-text i {
+    font-size: 0.72rem;
+    margin-right: 3px;
+    opacity: 0.9;
+}
+.card-pet-highlight {
     font-weight: 700;
     color: #ffffff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
-.card-pet-breed {
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.7);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.tutor-divider {
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0 3px;
 }
-.card-service-desc {
-    font-size: 0.74rem;
+.card-tutor-inline {
     color: rgba(255, 255, 255, 0.85);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 1px;
+    font-weight: 500;
 }
-.card-footer-meta {
+
+/* 3. Bloco Expandido no Hover (Abre ao passar o mouse) */
+.card-hover-details {
+    display: none;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.18);
+    animation: fadeInCardDetails 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modern-appointment-card:hover .card-hover-details {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 4px;
+}
+
+@keyframes fadeInCardDetails {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.hover-detail-item {
+    font-size: 0.74rem;
+    color: rgba(255, 255, 255, 0.92);
+    display: flex;
     align-items: center;
-    font-size: 0.7rem;
-    color: rgba(255, 255, 255, 0.65);
+    gap: 6px;
+    line-height: 1.25;
+}
+.hover-detail-item i {
+    width: 14px;
+    text-align: center;
+    font-size: 0.72rem;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+.hover-service-item {
+    font-size: 0.78rem;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+.hover-obs-item {
+    font-size: 0.71rem;
+    color: rgba(255, 255, 255, 0.82);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 3px 6px;
+    border-radius: 4px;
     margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: block;
+}
+.hover-action-hint {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.2);
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.75);
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 
 /* Temas Visuais dos Serviços (Gradientes Refinados) */
