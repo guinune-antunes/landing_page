@@ -143,7 +143,10 @@ if ($abaAtiva === 'quentes' || $abaAtiva === 'todas') {
                     </p>
                 </div>
                 
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <a href="relatorio_crm.php" class="btn btn-secondary" style="padding: 10px 16px; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                        <i class="fas fa-address-card"></i> Relatório CRM 360°
+                    </a>
                     <a href="vendas.php" class="btn btn-primary" style="background: #0f172a; border-color: #0f172a; padding: 10px 18px; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
                         <i class="fas fa-cash-register"></i> Abrir PDV / Vendas
                     </a>
@@ -242,10 +245,23 @@ if ($abaAtiva === 'quentes' || $abaAtiva === 'todas') {
                     </a>
                 </div>
 
-                <!-- Campo de Busca Dinâmica -->
-                <div style="position: relative; min-width: 260px;">
-                    <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.9rem;"></i>
-                    <input type="text" id="filtro-rapido" placeholder="Filtrar por pet, cliente ou ração..." class="form-control" style="width: 100%; padding: 8px 12px 8px 36px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.88rem;">
+                <!-- Campo de Busca Dinâmica (Select2) -->
+                <div style="min-width: 280px; max-width: 380px; width: 100%;">
+                    <select id="filtro-rapido" data-placeholder="Filtrar por pet, cliente ou ração..." data-s2-allow-clear="1" data-s2-tags="1" style="width: 100%;">
+                        <option value=""></option>
+                        <?php
+                        $opcoesBuscaCrm = [];
+                        foreach ($listaExibicao as $opItem) {
+                            $opcoesBuscaCrm[trim($opItem['nome_completo'])] = 'Tutor: ' . $opItem['nome_completo'];
+                            $opcoesBuscaCrm[trim($opItem['pet_nome'])] = 'Pet: ' . $opItem['pet_nome'] . ' (' . $opItem['nome_completo'] . ')';
+                            $opcoesBuscaCrm[trim($opItem['nome_produto'])] = 'Ração: ' . $opItem['nome_produto'];
+                        }
+                        foreach ($opcoesBuscaCrm as $valOp => $rotuloOp):
+                            if ($valOp === '') continue;
+                        ?>
+                            <option value="<?php echo htmlspecialchars($valOp); ?>"><?php echo htmlspecialchars($rotuloOp); ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
 
@@ -391,6 +407,9 @@ if ($abaAtiva === 'quentes' || $abaAtiva === 'todas') {
                                 <a href="vendas.php?cliente_id=<?php echo $op['cliente_id']; ?>&produto_id=<?php echo $op['produto_id']; ?>" class="btn" title="Abrir esta venda diretamente no PDV" style="flex: 1; text-align: center; background: #0f172a; color: white; text-decoration: none; padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
                                     <i class="fas fa-cash-register"></i> Repor no PDV
                                 </a>
+                                <a href="relatorio_crm.php?cliente_id=<?php echo (int)$op['cliente_id']; ?>" class="btn" title="Ver Histórico Completo e Relatório CRM do Cliente" style="text-align: center; background: #0284c7; color: white; text-decoration: none; padding: 10px 12px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-address-card"></i>
+                                </a>
                             </div>
 
                             <?php if ($op['status'] === 'Pendente'): ?>
@@ -433,20 +452,20 @@ if ($abaAtiva === 'quentes' || $abaAtiva === 'todas') {
 </div>
 
 <script>
-// Filtro instantâneo no navegador por Pet, Tutor ou Ração
-document.getElementById('filtro-rapido')?.addEventListener('input', function(e) {
-    const termo = e.target.value.toLowerCase().trim();
+// Filtro instantâneo no navegador por Pet, Tutor ou Ração (compatível com Select2)
+function aplicarFiltroRapidoCrm(valor) {
+    const termo = (valor || '').toLowerCase().trim();
     const cards = document.querySelectorAll('.card-oportunidade');
-    
     cards.forEach(card => {
         const texto = card.getAttribute('data-busca') || '';
-        if (termo === '' || texto.includes(termo)) {
-            card.style.display = 'flex';
-        } else {
-            card.style.display = 'none';
-        }
+        card.style.display = (termo === '' || texto.includes(termo)) ? 'flex' : 'none';
     });
-});
+}
+const elFiltroRapidoCrm = document.getElementById('filtro-rapido');
+if (elFiltroRapidoCrm) {
+    elFiltroRapidoCrm.addEventListener('input', e => aplicarFiltroRapidoCrm(e.target.value));
+    elFiltroRapidoCrm.addEventListener('change', e => aplicarFiltroRapidoCrm(e.target.value));
+}
 
 // Ação de Dar Baixa com chamada à API
 document.querySelectorAll('.btn-baixa').forEach(btn => {

@@ -27,19 +27,33 @@
 
             <div class="widget-card">
                 
-                <div class="quick-filter-bar">
-                    <button class="btn-quick-filter" data-filter="todos" style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: 0.3s; opacity: 1;">
-                        <i class="fas fa-list"></i> Todos
-                    </button>
-                    <button class="btn-quick-filter" data-filter="vencidos" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; opacity: 0.5; transition: 0.3s;">
-                        <i class="fas fa-skull-crossbones"></i> Vencidos
-                    </button>
-                    <button class="btn-quick-filter" data-filter="baixo_estoque" style="background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; opacity: 0.5; transition: 0.3s;">
-                        <i class="fas fa-exclamation-triangle"></i> Estoque Crítico (<= 5)
-                    </button>
-                    <button class="btn-quick-filter" data-filter="ok" style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; opacity: 0.5; transition: 0.3s;">
-                        <i class="fas fa-check-circle"></i> Estoque Saudável
-                    </button>
+                <div class="quick-filter-bar" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+                        <button class="btn-quick-filter" data-filter="todos" style="background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; transition: 0.3s; opacity: 1;">
+                            <i class="fas fa-list"></i> Todos
+                        </button>
+                        <button class="btn-quick-filter" data-filter="vencidos" style="background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; opacity: 0.5; transition: 0.3s;">
+                            <i class="fas fa-skull-crossbones"></i> Vencidos
+                        </button>
+                        <button class="btn-quick-filter" data-filter="baixo_estoque" style="background: #f39c12; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; opacity: 0.5; transition: 0.3s;">
+                            <i class="fas fa-exclamation-triangle"></i> Estoque Crítico (<= 5)
+                        </button>
+                        <button class="btn-quick-filter" data-filter="ok" style="background: #27ae60; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; opacity: 0.5; transition: 0.3s;">
+                            <i class="fas fa-check-circle"></i> Estoque Saudável
+                        </button>
+                    </div>
+                    <div style="min-width:280px;max-width:360px;width:100%;">
+                        <select id="produtos-select2-busca" data-placeholder="Pesquisar produto ou código (Select2)..." data-s2-allow-clear="1" data-s2-tags="1" style="width:100%;">
+                            <option value=""></option>
+                            <?php $buscaInicial = trim($_GET['busca'] ?? ''); ?>
+                            <?php foreach ($produtos as $pSel): ?>
+                                <?php $selectedProd = ($buscaInicial !== '' && strcasecmp($buscaInicial, $pSel['nome_produto']) === 0) ? 'selected' : ''; ?>
+                                <option value="<?php echo htmlspecialchars($pSel['nome_produto']); ?>" <?php echo $selectedProd; ?>>
+                                    <?php echo htmlspecialchars($pSel['nome_produto'] . (!empty($pSel['codigo_barras']) ? ' [' . $pSel['codigo_barras'] . ']' : '')); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="mobile-scroll-indicator" style="display:none;"><i class="fas fa-arrows-left-right"></i> Deslize a tabela para ver preços e ações</div>
@@ -158,7 +172,13 @@ document.addEventListener('DOMContentLoaded', function() {
         input.addEventListener('keyup', aplicarFiltros);
     });
 
+    const select2BuscaProd = document.getElementById('produtos-select2-busca');
+    if (select2BuscaProd) {
+        select2BuscaProd.addEventListener('change', aplicarFiltros);
+    }
+
     function aplicarFiltros() {
+        const buscaS2 = select2BuscaProd ? select2BuscaProd.value.toLowerCase().trim() : '';
         linhasTabela.forEach(linha => {
             let mostrarLinha = true;
             
@@ -168,6 +188,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (filtroAtivo === 'vencidos' && est_vencido !== 'sim') mostrarLinha = false;
             if (filtroAtivo === 'baixo_estoque' && est_baixo !== 'sim') mostrarLinha = false;
             if (filtroAtivo === 'ok' && (est_vencido === 'sim' || est_baixo === 'sim')) mostrarLinha = false;
+
+            if (mostrarLinha && buscaS2 !== '') {
+                const txtLinha = linha.textContent.toLowerCase();
+                if (!txtLinha.includes(buscaS2)) mostrarLinha = false;
+            }
 
             if (mostrarLinha) {
                 inputsFiltro.forEach(input => {
@@ -188,6 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             linha.style.display = mostrarLinha ? '' : 'none';
         });
+    }
+
+    if (select2BuscaProd && select2BuscaProd.value !== '') {
+        aplicarFiltros();
     }
 });
 </script>

@@ -103,6 +103,7 @@
         }
     </style>
 
+    <link rel="stylesheet" href="vendor/select2/select2.min.css">
     <link rel="stylesheet" href="style.css?v=<?php echo file_exists(__DIR__ . '/../style.css') ? filemtime(__DIR__ . '/../style.css') : time(); ?>">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">

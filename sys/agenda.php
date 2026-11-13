@@ -292,8 +292,8 @@ include 'includes/_sidebar.php';
 
                 <!-- Filtros Rápidos Dinâmicos -->
                 <div class="agenda-filters-cluster">
-                    <div class="filter-item">
-                        <select id="filtro-agenda-profissional" class="agenda-filter-select">
+                    <div class="filter-item" style="min-width:190px;">
+                        <select id="filtro-agenda-profissional" class="agenda-filter-select" data-s2-allow-clear="1" data-placeholder="Todos os Profissionais">
                             <option value="">Todos os Profissionais</option>
                             <?php foreach ($profissionais as $prof): ?>
                                 <option value="<?php echo $prof['id']; ?>"><?php echo htmlspecialchars($prof['nome']); ?></option>
@@ -301,8 +301,8 @@ include 'includes/_sidebar.php';
                         </select>
                     </div>
 
-                    <div class="filter-item">
-                        <select id="filtro-agenda-servico" class="agenda-filter-select">
+                    <div class="filter-item" style="min-width:170px;">
+                        <select id="filtro-agenda-servico" class="agenda-filter-select" data-s2-allow-clear="1" data-placeholder="Todos os Serviços">
                             <option value="">Todos os Serviços</option>
                             <option value="Banho">Banho</option>
                             <option value="Tosa">Tosa</option>
@@ -312,8 +312,8 @@ include 'includes/_sidebar.php';
                         </select>
                     </div>
 
-                    <div class="filter-item">
-                        <select id="filtro-agenda-status" class="agenda-filter-select">
+                    <div class="filter-item" style="min-width:165px;">
+                        <select id="filtro-agenda-status" class="agenda-filter-select" data-s2-allow-clear="1" data-placeholder="Todos os Status">
                             <option value="">Todos os Status</option>
                             <option value="Agendado">Agendados</option>
                             <option value="Em Andamento">Em Atendimento</option>
@@ -321,9 +321,10 @@ include 'includes/_sidebar.php';
                         </select>
                     </div>
 
-                    <div class="filter-search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="filtro-agenda-busca" placeholder="Buscar pet ou tutor...">
+                    <div class="filter-search-box" style="min-width:220px;">
+                        <select id="filtro-agenda-busca" class="agenda-filter-select" data-placeholder="Buscar pet ou tutor..." data-s2-allow-clear="1" data-s2-tags="1" style="width:100%;">
+                            <option value=""></option>
+                        </select>
                     </div>
                 </div>
             </div>

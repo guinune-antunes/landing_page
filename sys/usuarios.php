@@ -343,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('edit-user-id').value = id;
             document.getElementById('edit-nome-display').innerText = nome;
             document.getElementById('edit-user-cargo').value = cargo;
+            window.PetCrmSelect2?.sync('#edit-user-cargo');
 
             // Alimenta as chavinhas com o que veio do banco
             document.getElementById('edit-perm-clientes').checked = !!permissoes.clientes;

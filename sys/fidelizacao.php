@@ -50,8 +50,9 @@ if (!$cfg) {
 $aceleradores = json_decode($cfg['regras_aceleradores'] ?? '{}', true) ?: [];
 $tiers = json_decode($cfg['tiers_config'] ?? '[]', true) ?: [];
 
-// 2. Busca Promoções Ativas e Históricas
-$stPromos = $pdo->prepare("SELECT p.*, prod.nome_produto, prod.codigo_barras 
+// 2. Busca Promoções Ativas e Históricas + contagem de usos
+$stPromos = $pdo->prepare("SELECT p.*, prod.nome_produto, prod.codigo_barras,
+                          (SELECT COUNT(*) FROM promocao_usos pu WHERE pu.promocao_id = p.id) as total_usos_reais
                           FROM promocoes p 
                           LEFT JOIN produtos prod ON p.produto_id = prod.id 
                           WHERE p.instituicao_id = ? 
@@ -519,6 +520,9 @@ include 'includes/_head.php';
                 <a href="crm_vendas.php" class="fid-tab-btn">
                     <i class="fas fa-calculator"></i> CRM Reposição Nutricional
                 </a>
+                <a href="relatorio_crm.php" class="fid-tab-btn">
+                    <i class="fas fa-address-card"></i> Relatório CRM por Cliente
+                </a>
                 <button class="fid-tab-btn active" data-tab="tab-cartao">
                     <i class="fas fa-layer-group"></i> 1. Hub de Regras & Cartões (Modular)
                 </button>
@@ -705,12 +709,44 @@ include 'includes/_head.php';
                                         <?php endif; ?>
                                     </div>
 
+                                    <?php
+                                        $polP = $pr['politica_reentrada'] ?? 'ilimitada';
+                                        $polLabelMap = [
+                                            'ilimitada' => '♾️ Recompra livre',
+                                            'unica_vez' => '1️⃣ Única vez/cliente',
+                                            'uma_por_dia' => '📅 Máx 1x ao dia',
+                                            'cooldown_dias' => '⏳ Carência ' . (int)($pr['cooldown_dias'] ?? 0) . 'd',
+                                        ];
+                                        $polTxt = $polLabelMap[$polP] ?? $polP;
+                                    ?>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; font-size: 0.74rem;">
+                                        <span style="background: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                                            <?php echo htmlspecialchars($polTxt); ?>
+                                        </span>
+                                        <?php if (!empty($pr['limite_usos_cliente'])): ?>
+                                            <span style="background: #eff6ff; color: #1d4ed8; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                                                Máx <?php echo (int)$pr['limite_usos_cliente']; ?>x/cli
+                                            </span>
+                                        <?php endif; ?>
+                                        <span style="background: #ecfdf5; color: #047857; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                                            <?php echo (int)($pr['total_usos_reais'] ?? $pr['usos_globais_atuais'] ?? 0); ?><?php echo !empty($pr['limite_usos_global']) ? '/' . (int)$pr['limite_usos_global'] : ''; ?> uso(s)
+                                        </span>
+                                        <?php if (!isset($pr['aplicar_automatico_pdv']) || (int)$pr['aplicar_automatico_pdv'] === 1): ?>
+                                            <span style="background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                                                ⚡ Auto no PDV
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+
                                     <div class="promo-actions">
                                         <?php 
                                             // Link WhatsApp para compartilhar
                                             $msgPromo = "🔥 *OFERTA RELÂMPAGO DO PET SHOP!* 🔥\n\n*{$pr['titulo']}*\n" . ($pr['preco_promocional'] > 0 ? "De ~R$ " . number_format($pr['preco_original'], 2, ',', '.') . "~ por apenas *R$ " . number_format($pr['preco_promocional'], 2, ',', '.') . "* (" . (int)$pr['desconto_percentual'] . "% OFF)!\n\n" : "") . "⏰ Promoção por tempo limitado até " . date('d/m/Y H:i', $fimTs) . ".\n\nGaranta a sua antes que acabe!";
                                             $linkZapPromo = "https://api.whatsapp.com/send?text=" . urlencode($msgPromo);
                                         ?>
+                                        <button type="button" class="btn btn-sm btn-edit-promo" data-promo='<?php echo htmlspecialchars(json_encode($pr), ENT_QUOTES, 'UTF-8'); ?>' style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.82rem;">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                         <a href="<?php echo $linkZapPromo; ?>" target="_blank" class="btn" style="flex: 1.2; text-align: center; background: #25D366; color: white; padding: 8px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; text-decoration: none;">
                                             <i class="fab fa-whatsapp"></i> Divulgar WhatsApp
                                         </a>
@@ -911,26 +947,34 @@ include 'includes/_head.php';
                         </p>
 
                         <div class="form-group" style="margin-bottom: 15px;">
-                            <label style="font-size: 0.85rem; color: #cbd5e1;">Buscar Cliente (Nome, CPF ou Telefone):</label>
-                            <input type="text" id="balcao-busca" placeholder="Digite 2 ou mais letras..." style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; font-size: 0.95rem;">
-                            <div id="balcao-resultados" style="display: none; background: #1e293b; border-radius: 8px; border: 1px solid #334155; margin-top: 6px; max-height: 200px; overflow-y: auto;"></div>
+                            <label style="font-size: 0.85rem; color: #cbd5e1;">Buscar Cliente (Nome, CPF ou Telefone via Select2):</label>
+                            <select id="balcao-busca" data-no-auto-select2="1" style="width: 100%;"></select>
                         </div>
 
                         <!-- PAINEL DO CLIENTE SELECIONADO -->
                         <div id="balcao-cliente-card" style="display: none; background: #0f172a; border-radius: 12px; padding: 16px; border: 1px solid #334155; margin-bottom: 15px;">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px;">
                                 <div>
                                     <strong id="balcao-cli-nome" style="font-size: 1.05rem; color: #f8fafc; display: block;">Nome do Cliente</strong>
                                     <small id="balcao-cli-cpf" style="color: #94a3b8;">CPF: 000.000.000-00</small>
                                 </div>
-                                <span id="balcao-cli-tier" style="background: #f1c40f; color: #000; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 12px;">Bronze</span>
+                                <div style="display:flex;align-items:center;gap:6px;">
+                                    <a id="balcao-btn-relatorio" href="relatorio_crm.php" class="btn btn-sm" style="background:#0284c7;color:#fff;border:none;border-radius:10px;padding:4px 9px;font-size:0.74rem;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;" title="Abrir Relatório CRM 360°">
+                                        <i class="fas fa-chart-pie"></i> Histórico
+                                    </a>
+                                    <span id="balcao-cli-tier" style="background: #f1c40f; color: #000; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 12px;">Bronze</span>
+                                </div>
                             </div>
 
-                            <div style="background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                                <span>Selos Acumulados:</span>
+                            <div style="background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Selos Base:</span>
                                 <strong style="font-size: 1.2rem; color: #2ecc71;">
                                     <span id="balcao-cli-selos">0</span> / <?php echo $cfg['compras_para_recompensa']; ?>
                                 </strong>
+                            </div>
+                            <div style="background: #1e293b; padding: 10px 12px; border-radius: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; font-size: 0.82rem; color: #cbd5e1;">
+                                <span>⭐ Pontos: <strong id="balcao-cli-pontos" style="color: #fbbf24;">0</strong></span>
+                                <span>💰 Cashback: <strong id="balcao-cli-cashback" style="color: #34d399;">R$ 0,00</strong></span>
                             </div>
 
                             <div class="form-group" style="margin-bottom: 15px;">
@@ -940,11 +984,19 @@ include 'includes/_head.php';
 
                             <div style="display: flex; gap: 10px;">
                                 <button type="button" class="btn" id="btn-add-selo" style="flex: 1.2; background: #1abc9c; color: white; padding: 12px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer;">
-                                    <i class="fas fa-stamp"></i> Adicionar Selo
+                                    <i class="fas fa-stamp"></i> Adicionar Selo Base
                                 </button>
                                 <button type="button" class="btn" id="btn-resgatar-premio" style="flex: 1; background: #e67e22; color: white; padding: 12px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; display: none;">
-                                    <i class="fas fa-gift"></i> Resgatar 15%
+                                    <i class="fas fa-gift"></i> Resgatar Base
                                 </button>
+                            </div>
+
+                            <!-- REGRAS MODULARES & CICLOS DO CLIENTE SELECIONADO -->
+                            <div id="balcao-regras-modulares" style="margin-top: 16px; border-top: 1px solid #334155; padding-top: 12px;">
+                                <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600;">
+                                    <i class="fas fa-layer-group" style="color: #38bdf8;"></i> Cartões Modulares & Política de Reentrada:
+                                </div>
+                                <div id="balcao-regras-lista" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.82rem;"></div>
                             </div>
                         </div>
 
@@ -1038,6 +1090,7 @@ include 'includes/_head.php';
         <form id="form-salvar-regra-modular">
             <input type="hidden" name="id" id="regra-id-input" value="0">
             <input type="hidden" name="instituicao_id" value="<?php echo $id_loja; ?>">
+            <input type="hidden" name="_form_politica" value="1">
 
             <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; align-items: start;">
                 
@@ -1080,12 +1133,12 @@ include 'includes/_head.php';
                         <select name="item_alvo_id" id="regra-item-alvo-select" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
                             <optgroup label="Serviços">
                                 <?php foreach ($servicos_loja as $sv): ?>
-                                    <option value="<?php echo $sv['id']; ?>"><?php echo htmlspecialchars($sv['nome_servico']); ?> (R$ <?php echo number_format($sv['preco_padrao'], 2, ',', '.'); ?>)</option>
+                                    <option value="servico:<?php echo $sv['id']; ?>"><?php echo htmlspecialchars($sv['nome_servico']); ?> (R$ <?php echo number_format($sv['preco_padrao'], 2, ',', '.'); ?>)</option>
                                 <?php endforeach; ?>
                             </optgroup>
                             <optgroup label="Produtos">
                                 <?php foreach ($produtos_loja as $pr): ?>
-                                    <option value="<?php echo $pr['id']; ?>"><?php echo htmlspecialchars($pr['nome_produto']); ?> (R$ <?php echo number_format($pr['preco_venda'], 2, ',', '.'); ?>)</option>
+                                    <option value="produto:<?php echo $pr['id']; ?>"><?php echo htmlspecialchars($pr['nome_produto']); ?> (R$ <?php echo number_format($pr['preco_venda'], 2, ',', '.'); ?>)</option>
                                 <?php endforeach; ?>
                             </optgroup>
                         </select>
@@ -1130,6 +1183,7 @@ include 'includes/_head.php';
                                 <option value="desconto_fixo">Desconto em Reais (R$)</option>
                                 <option value="item_gratis">Item / Serviço Grátis</option>
                                 <option value="cashback">Cashback (%)</option>
+                                <option value="multiplicador_pontos">Multiplicador de Pontos (Nx)</option>
                             </select>
                             <input type="number" step="0.5" name="recompensa_valor" id="regra-recompensa-valor" value="15" placeholder="Valor" class="form-control" style="padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-weight: 700; color: #059669;">
                         </div>
@@ -1137,12 +1191,12 @@ include 'includes/_head.php';
                             <select name="recompensa_item_id" id="regra-recompensa-item-select" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
                                 <optgroup label="Serviços Gratuitos">
                                     <?php foreach ($servicos_loja as $sv): ?>
-                                        <option value="<?php echo $sv['id']; ?>"><?php echo htmlspecialchars($sv['nome_servico']); ?></option>
+                                        <option value="servico:<?php echo $sv['id']; ?>"><?php echo htmlspecialchars($sv['nome_servico']); ?></option>
                                     <?php endforeach; ?>
                                 </optgroup>
                                 <optgroup label="Produtos / Brindes">
                                     <?php foreach ($produtos_loja as $pr): ?>
-                                        <option value="<?php echo $pr['id']; ?>"><?php echo htmlspecialchars($pr['nome_produto']); ?></option>
+                                        <option value="produto:<?php echo $pr['id']; ?>"><?php echo htmlspecialchars($pr['nome_produto']); ?></option>
                                     <?php endforeach; ?>
                                 </optgroup>
                             </select>
@@ -1154,6 +1208,66 @@ include 'includes/_head.php';
                             Trava de Segurança / Teto Máximo de Desconto (R$)
                         </label>
                         <input type="number" step="1" name="limite_desconto_recompensa" id="regra-limite-desconto" value="50" placeholder="Sem teto" class="form-control" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                    </div>
+
+                    <!-- CONTROLES DE POLÍTICA DE REENTRADA, LIMITES & EMPILHAMENTO -->
+                    <div style="background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 12px; padding: 14px; margin-bottom: 14px;">
+                        <label style="font-weight: 700; color: #0f766e; display: block; margin-bottom: 8px; font-size: 0.88rem;">
+                            <i class="fas fa-sync-alt"></i> 5B. Controle de Reentrada & Limites do Ciclo
+                        </label>
+
+                        <div style="margin-bottom: 10px;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">
+                                Ao comprar o produto novamente, o cliente inicia outro ciclo?
+                            </label>
+                            <select name="politica_reentrada" id="regra-politica-reentrada" class="form-control" style="width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+                                <option value="reiniciar_apos_resgate">🔄 Reiniciar após resgate (Pausa na meta até resgatar)</option>
+                                <option value="reiniciar_ao_concluir">⚡ Reiniciar automaticamente ao concluir meta</option>
+                                <option value="unica_vez">1️⃣ Participação única na vida (Não inicia outro ciclo)</option>
+                                <option value="cooldown_dias">⏳ Reiniciar apenas após carência (Cooldown em dias)</option>
+                                <option value="ilimitada_por_compra">♾️ Recorrente imediata em toda compra elegível</option>
+                            </select>
+                        </div>
+
+                        <div id="box-regra-cooldown" style="display: none; margin-bottom: 10px;">
+                            <label style="font-size: 0.78rem; font-weight: 600; color: #334155; display: block; margin-bottom: 4px;">
+                                Carência para iniciar novo ciclo (dias):
+                            </label>
+                            <input type="number" min="0" name="cooldown_dias" id="regra-cooldown-dias" value="30" class="form-control" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 0.8fr; gap: 8px; margin-bottom: 10px;">
+                            <div>
+                                <label style="font-size: 0.74rem; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">Máx. ciclos/cliente:</label>
+                                <input type="number" min="1" name="limite_ciclos_cliente" id="regra-limite-ciclos" placeholder="Ilimitado" class="form-control" style="width: 100%; padding: 7px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.74rem; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">Limite global loja:</label>
+                                <input type="number" min="1" name="limite_usos_global" id="regra-limite-global" placeholder="Ilimitado" class="form-control" style="width: 100%; padding: 7px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.74rem; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">Prioridade (1=↑):</label>
+                                <input type="number" min="1" name="prioridade" id="regra-prioridade" value="10" class="form-control" style="width: 100%; padding: 7px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                            <div>
+                                <label style="font-size: 0.74rem; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">Vigência Início (Opcional):</label>
+                                <input type="datetime-local" name="data_inicio" id="regra-data-inicio" class="form-control" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.78rem;">
+                            </div>
+                            <div>
+                                <label style="font-size: 0.74rem; font-weight: 600; color: #475569; display: block; margin-bottom: 3px;">Vigência Fim (Opcional):</label>
+                                <input type="datetime-local" name="data_fim" id="regra-data-fim" class="form-control" style="width: 100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.78rem;">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 5px; font-size: 0.79rem; color: #1e293b;">
+                            <label style="cursor: pointer;"><input type="checkbox" name="contagem_por_item" id="regra-contagem-item" value="1"> Contar por quantidade de itens (ex: 3 un = +3 selos)</label>
+                            <label style="cursor: pointer;"><input type="checkbox" name="acumular_sobra" id="regra-acumular-sobra" value="1" checked> Transferir sobra para o próximo ciclo</label>
+                            <label style="cursor: pointer;"><input type="checkbox" name="auto_resgatar_pdv" id="regra-auto-resgatar" value="1" checked> Aplicar/resgatar automaticamente no PDV quando disponível</label>
+                            <label style="cursor: pointer;"><input type="checkbox" name="acumular_com_outras" id="regra-acumular-outras" value="1" checked> Permitir acumular com outras regras simultâneas</label>
+                        </div>
                     </div>
                 </div>
 
@@ -1266,6 +1380,7 @@ include 'includes/_head.php';
             <input type="hidden" name="acao" value="salvar_promocao">
             <input type="hidden" name="instituicao_id" value="<?php echo $id_loja; ?>">
             <input type="hidden" name="promo_id" id="promo-id-input" value="0">
+            <input type="hidden" name="_form_promo" value="1">
 
             <div class="form-group" style="margin-bottom: 14px;">
                 <label style="font-weight: 600; display: block; margin-bottom: 4px;">Título da Promoção *</label>
@@ -1275,7 +1390,7 @@ include 'includes/_head.php';
             <div class="form-group" style="margin-bottom: 14px;">
                 <label style="font-weight: 600; display: block; margin-bottom: 4px;">Vincular Produto do Estoque (Opcional)</label>
                 <select name="produto_id" id="promo-produto-select" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-                    <option value="">-- Selecionar Produto do Estoque --</option>
+                    <option value="">-- Todos os Produtos da Loja --</option>
                     <?php foreach ($produtos_loja as $prod): ?>
                         <option value="<?php echo $prod['id']; ?>" data-preco="<?php echo $prod['preco_venda']; ?>">
                             <?php echo htmlspecialchars($prod['nome_produto']); ?> (Preço Normal: R$ <?php echo number_format($prod['preco_venda'], 2, ',', '.'); ?>)
@@ -1292,6 +1407,40 @@ include 'includes/_head.php';
                 <div class="form-group">
                     <label style="font-weight: 600; display: block; margin-bottom: 4px;">Preço Promocional Calculado</label>
                     <input type="text" id="promo-preco-calculado" readonly value="R$ 0,00" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; font-weight: 700; color: #27ae60;">
+                </div>
+            </div>
+
+            <!-- CONTROLE DE REENTRADA E LIMITES NA PROMOÇÃO RELÂMPAGO -->
+            <div style="background: #fff1f2; border: 1px solid #fecdd3; border-radius: 10px; padding: 12px; margin-bottom: 14px;">
+                <label style="font-weight: 700; color: #be123c; display: block; margin-bottom: 6px; font-size: 0.86rem;">
+                    <i class="fas fa-redo"></i> Regra de Recompra na Promoção (Inicia outra vez?)
+                </label>
+                <div style="display: grid; grid-template-columns: 1.4fr 0.8fr 0.8fr; gap: 8px; margin-bottom: 8px;">
+                    <div>
+                        <label style="font-size: 0.74rem; font-weight: 600; color: #475569;">Frequência por cliente:</label>
+                        <select name="politica_reentrada" id="promo-politica-reentrada" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                            <option value="ilimitada">♾️ Ilimitada (Toda recompra)</option>
+                            <option value="unica_vez">1️⃣ Única vez por cliente</option>
+                            <option value="uma_por_dia">📅 Máximo 1x por dia</option>
+                            <option value="cooldown_dias">⏳ Carência em dias</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 0.74rem; font-weight: 600; color: #475569;">Máx/cliente:</label>
+                        <input type="number" min="1" name="limite_usos_cliente" id="promo-limite-cliente" placeholder="Livre" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                    </div>
+                    <div>
+                        <label style="font-size: 0.74rem; font-weight: 600; color: #475569;">Limite global:</label>
+                        <input type="number" min="1" name="limite_usos_global" id="promo-limite-global" placeholder="Livre" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                    </div>
+                </div>
+                <div id="box-promo-cooldown" style="display: none; margin-bottom: 8px;">
+                    <label style="font-size: 0.74rem; font-weight: 600; color: #475569;">Carência entre usos (dias):</label>
+                    <input type="number" min="1" name="cooldown_dias" id="promo-cooldown-dias" value="7" style="width: 100%; padding: 7px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.82rem;">
+                </div>
+                <div style="display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: #1e293b;">
+                    <label style="cursor: pointer;"><input type="checkbox" name="aplicar_automatico_pdv" id="promo-auto-pdv" value="1" checked> Aplicar desconto automaticamente no PDV</label>
+                    <label style="cursor: pointer;"><input type="checkbox" name="ativo" id="promo-ativo-chk" value="1" checked> Campanha ativa</label>
                 </div>
             </div>
 
@@ -1535,18 +1684,65 @@ atualizarTimers();
 // 5. MODAL DE PROMOÇÃO & CÁLCULO DE DESCONTO
 // ══════════════════════════════════════════════════════════════════
 const modalPromo = document.getElementById('promo-modal');
-function abrirModalPromo() {
-    if (modalPromo) modalPromo.style.display = 'flex';
+const selPromoPol = document.getElementById('promo-politica-reentrada');
+const boxPromoCooldown = document.getElementById('box-promo-cooldown');
+if (selPromoPol && boxPromoCooldown) {
+    selPromoPol.addEventListener('change', () => {
+        boxPromoCooldown.style.display = (selPromoPol.value === 'cooldown_dias') ? 'block' : 'none';
+    });
+}
+
+function abrirModalPromo(dados = null) {
+    const formP = document.getElementById('form-salvar-promo');
+    if (formP) formP.reset();
+    document.getElementById('promo-id-input').value = '0';
+    document.getElementById('promo-politica-reentrada').value = 'ilimitada';
+    document.getElementById('promo-auto-pdv').checked = true;
+    document.getElementById('promo-ativo-chk').checked = true;
+    if (boxPromoCooldown) boxPromoCooldown.style.display = 'none';
+
+    if (dados) {
+        document.getElementById('promo-id-input').value = dados.id || '0';
+        document.getElementById('promo-titulo-input').value = dados.titulo || '';
+        document.getElementById('promo-produto-select').value = dados.produto_id || '';
+        document.getElementById('promo-desconto-input').value = parseFloat(dados.desconto_percentual || 20);
+        document.getElementById('promo-desc-input').value = dados.descricao || '';
+        document.getElementById('promo-politica-reentrada').value = dados.politica_reentrada || 'ilimitada';
+        document.getElementById('promo-limite-cliente').value = dados.limite_usos_cliente || '';
+        document.getElementById('promo-limite-global').value = dados.limite_usos_global || '';
+        document.getElementById('promo-cooldown-dias').value = dados.cooldown_dias || 7;
+        document.getElementById('promo-auto-pdv').checked = (dados.aplicar_automatico_pdv === undefined || parseInt(dados.aplicar_automatico_pdv) === 1);
+        document.getElementById('promo-ativo-chk').checked = (dados.ativo === undefined || parseInt(dados.ativo) === 1);
+        if (dados.data_inicio) document.getElementById('promo-inicio-input').value = String(dados.data_inicio).replace(' ', 'T').slice(0, 16);
+        if (dados.data_fim) document.getElementById('promo-fim-input').value = String(dados.data_fim).replace(' ', 'T').slice(0, 16);
+        if (boxPromoCooldown) boxPromoCooldown.style.display = (dados.politica_reentrada === 'cooldown_dias') ? 'block' : 'none';
+    }
+    recalcularPrecoPromo();
+    if (modalPromo) {
+        modalPromo.style.display = 'flex';
+        if (window.PetCrmSelect2) {
+            modalPromo.querySelectorAll('select').forEach(s => window.PetCrmSelect2.sync(s));
+        }
+    }
 }
 function fecharModalPromo() {
     if (modalPromo) modalPromo.style.display = 'none';
 }
 
 const btnAbrirNovaPromo = document.getElementById('btn-abrir-nova-promo');
-if (btnAbrirNovaPromo) btnAbrirNovaPromo.onclick = abrirModalPromo;
+if (btnAbrirNovaPromo) btnAbrirNovaPromo.onclick = () => abrirModalPromo();
 
 const btnCriarPromoTab = document.getElementById('btn-criar-promo-tab');
-if (btnCriarPromoTab) btnCriarPromoTab.onclick = abrirModalPromo;
+if (btnCriarPromoTab) btnCriarPromoTab.onclick = () => abrirModalPromo();
+
+document.querySelectorAll('.btn-edit-promo').forEach(btn => {
+    btn.addEventListener('click', function() {
+        try {
+            const d = JSON.parse(this.getAttribute('data-promo'));
+            abrirModalPromo(d);
+        } catch (e) { console.error(e); }
+    });
+});
 
 // Cálculo dinâmico do desconto ao escolher produto e %
 const prodSelect = document.getElementById('promo-produto-select');
@@ -1627,48 +1823,52 @@ document.querySelectorAll('.btn-delete-promo').forEach(btn => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// 6. TERMINAL RÁPIDO DE BALCÃO (PONTUAR E RESGATAR)
+// 6. TERMINAL RÁPIDO DE BALCÃO (SELECT2 AJAX + PONTUAR E RESGATAR)
 // ══════════════════════════════════════════════════════════════════
 const inputBuscaBalcao = document.getElementById('balcao-busca');
-const divResultadosBalcao = document.getElementById('balcao-resultados');
 const cardCliBalcao = document.getElementById('balcao-cliente-card');
 let clienteSelecionadoBalcao = null;
 
-if (inputBuscaBalcao && divResultadosBalcao) {
-    inputBuscaBalcao.addEventListener('input', function() {
-        const termo = this.value.trim();
-        if (termo.length < 2) {
-            divResultadosBalcao.style.display = 'none';
-            return;
-        }
-
-        fetch(`api_fidelidade.php?acao=buscar_cliente_fidelidade&termo=${encodeURIComponent(termo)}&instituicao_id=<?php echo $id_loja; ?>`)
-        .then(r => r.json())
-        .then(res => {
-            if (res.success && res.clientes.length > 0) {
-                divResultadosBalcao.innerHTML = '';
-                res.clientes.forEach(c => {
-                    const item = document.createElement('div');
-                    item.style.padding = '10px 14px';
-                    item.style.borderBottom = '1px solid #334155';
-                    item.style.cursor = 'pointer';
-                    item.innerHTML = `<strong>${c.nome_completo}</strong> <small style="color:#94a3b8;">(${c.telefone || 'sem fone'}) - Selos: ${c.selos}</small>`;
-                    item.onclick = () => selecionarClienteBalcao(c);
-                    divResultadosBalcao.appendChild(item);
-                });
-                divResultadosBalcao.style.display = 'block';
-            } else {
-                divResultadosBalcao.innerHTML = '<div style="padding:10px;color:#94a3b8;">Nenhum cliente encontrado.</div>';
-                divResultadosBalcao.style.display = 'block';
+document.addEventListener('DOMContentLoaded', function() {
+    if (inputBuscaBalcao && typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.select2 === 'function') {
+        const $b = window.jQuery(inputBuscaBalcao);
+        $b.select2({
+            language: 'pt-BR',
+            width: '100%',
+            placeholder: 'Pesquise por nome, CPF ou telefone...',
+            allowClear: true,
+            minimumInputLength: 0,
+            ajax: {
+                url: 'api_fidelidade.php',
+                dataType: 'json',
+                delay: 200,
+                data: params => ({
+                    acao: 'buscar_cliente_fidelidade',
+                    select2: 1,
+                    q: params.term || '',
+                    instituicao_id: <?php echo (int)$id_loja; ?>
+                }),
+                processResults: data => ({ results: data.results || [] }),
+                cache: true
             }
         });
-    });
-}
+        $b.on('select2:select', function(e) {
+            const d = e.params && e.params.data;
+            if (d && d.cliente) {
+                selecionarClienteBalcao(d.cliente);
+            }
+        });
+        $b.on('select2:clear', function() {
+            clienteSelecionadoBalcao = null;
+            if (cardCliBalcao) cardCliBalcao.style.display = 'none';
+        });
+    }
+});
 
 function selecionarClienteBalcao(c) {
     clienteSelecionadoBalcao = c;
-    if (divResultadosBalcao) divResultadosBalcao.style.display = 'none';
-    if (inputBuscaBalcao) inputBuscaBalcao.value = c.nome_completo;
+    const btnRel = document.getElementById('balcao-btn-relatorio');
+    if (btnRel) btnRel.href = 'relatorio_crm.php?cliente_id=' + encodeURIComponent(c.id);
 
     const elNome = document.getElementById('balcao-cli-nome');
     if (elNome) elNome.innerText = c.nome_completo;
@@ -1678,6 +1878,10 @@ function selecionarClienteBalcao(c) {
     if (elTier) elTier.innerText = c.tier || 'Bronze';
     const elSelos = document.getElementById('balcao-cli-selos');
     if (elSelos) elSelos.innerText = c.selos || '0';
+    const elPontos = document.getElementById('balcao-cli-pontos');
+    if (elPontos) elPontos.innerText = c.pontos || '0';
+    const elCashback = document.getElementById('balcao-cli-cashback');
+    if (elCashback) elCashback.innerText = 'R$ ' + parseFloat(c.saldo_cashback || 0).toFixed(2).replace('.', ',');
 
     const max = parseInt(<?php echo (int)($cfg['compras_para_recompensa'] ?? 10); ?>);
     const btnResgate = document.getElementById('btn-resgatar-premio');
@@ -1690,6 +1894,63 @@ function selecionarClienteBalcao(c) {
     }
 
     if (cardCliBalcao) cardCliBalcao.style.display = 'block';
+    carregarDetalhesBalcaoCliente(c.id);
+}
+
+function carregarDetalhesBalcaoCliente(clienteId) {
+    const listaEl = document.getElementById('balcao-regras-lista');
+    if (!listaEl) return;
+    listaEl.innerHTML = '<div style="color:#94a3b8;">Carregando regras e ciclos...</div>';
+
+    fetch(`api_fidelidade.php?acao=detalhar_cliente_regras&cliente_id=${clienteId}&instituicao_id=<?php echo $id_loja; ?>`)
+    .then(r => r.json())
+    .then(res => {
+        if (!res.success || !res.regras || res.regras.length === 0) {
+            listaEl.innerHTML = '<div style="color:#64748b;">Nenhuma regra modular ativa na loja.</div>';
+            return;
+        }
+        let html = '';
+        res.regras.forEach(r => {
+            const pronto = r.recompensa_disponivel;
+            const bloq = r.bloqueado_reentrada || r.status_codigo === 'em_cooldown' || r.status_codigo === 'limite_ciclos_cliente';
+            const corBadge = pronto ? '#10b981' : (bloq ? '#ef4444' : '#38bdf8');
+            html += `
+                <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                    <div>
+                        <strong style="color:#f8fafc;">${r.nome_regra}</strong>
+                        <div style="font-size:0.75rem; color:#94a3b8;">
+                            Progresso: <strong style="color:#e2e8f0;">${r.progresso_atual}/${r.meta || '-'}</strong> &bull;
+                            Ciclos: <strong style="color:#e2e8f0;">${r.ciclos_completados}</strong>
+                        </div>
+                        <span style="display:inline-block; margin-top:3px; font-size:0.72rem; color:${corBadge}; font-weight:700;">
+                            ${r.motivo_bloqueio || r.status_label}
+                        </span>
+                    </div>
+                    ${pronto ? `<button type="button" onclick="resgatarRegraModularBalcao(${clienteId}, ${r.id})" style="background:#f59e0b; color:#0f172a; border:none; border-radius:6px; padding:7px 10px; font-weight:700; cursor:pointer; font-size:0.76rem; white-space:nowrap;">
+                        <i class="fas fa-gift"></i> Resgatar
+                    </button>` : ''}
+                </div>
+            `;
+        });
+        listaEl.innerHTML = html;
+    });
+}
+
+function resgatarRegraModularBalcao(clienteId, regraId) {
+    if (!confirm('Confirmar o resgate desta regra modular?')) return;
+    fetch('api_fidelidade.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `acao=resgatar_regra_modular&cliente_id=${clienteId}&regra_id=${regraId}&instituicao_id=<?php echo $id_loja; ?>`
+    })
+    .then(r => r.json())
+    .then(res => {
+        alert(res.message);
+        if (res.success) {
+            carregarDetalhesBalcaoCliente(clienteId);
+            carregarRegrasModulares();
+        }
+    });
 }
 
 // Botão Adicionar Selo no Balcão
@@ -1767,29 +2028,88 @@ function abrirModalConstrutor(dados = null) {
     document.getElementById("form-salvar-regra-modular").reset();
     document.getElementById("regra-id-input").value = "0";
     document.getElementById("modal-regra-titulo").innerText = "Nova Regra de Fidelidade & Desconto";
+    document.querySelectorAll('#box-dias-semana input[type="checkbox"]').forEach(chk => { chk.checked = false; });
+
+    // Defaults de política para nova regra
+    document.getElementById("regra-politica-reentrada").value = "reiniciar_apos_resgate";
+    document.getElementById("regra-cooldown-dias").value = "30";
+    document.getElementById("regra-limite-ciclos").value = "";
+    document.getElementById("regra-limite-global").value = "";
+    document.getElementById("regra-prioridade").value = "10";
+    document.getElementById("regra-contagem-item").checked = false;
+    document.getElementById("regra-acumular-sobra").checked = true;
+    document.getElementById("regra-auto-resgatar").checked = true;
+    document.getElementById("regra-acumular-outras").checked = true;
 
     if (dados) {
-        document.getElementById("modal-regra-titulo").innerText = "Editar Regra de Fidelidade";
+        document.getElementById("modal-regra-titulo").innerText = dados.id > 0 ? "Editar Regra de Fidelidade" : "Pré-configurar Regra";
         document.getElementById("regra-id-input").value = dados.id || "0";
         document.getElementById("regra-nome-input").value = dados.nome_regra || "";
         document.getElementById("regra-mecanica-select").value = dados.tipo_mecanica || "cartao_selos";
         document.getElementById("regra-alvo-select").value = dados.categoria_alvo || "todos";
         document.getElementById("regra-condicao-tipo").value = dados.condicao_tipo || "quantidade_compras";
-        document.getElementById("regra-condicao-valor").value = dados.condicao_valor || "10";
+        document.getElementById("regra-condicao-valor").value = (dados.condicao_valor !== undefined && dados.condicao_valor !== null) ? dados.condicao_valor : "10";
         document.getElementById("regra-recompensa-tipo").value = dados.recompensa_tipo || "desconto_percentual";
         document.getElementById("regra-recompensa-valor").value = dados.recompensa_valor || "15";
-        document.getElementById("regra-limite-desconto").value = dados.limite_desconto_recompensa || "50";
+        document.getElementById("regra-limite-desconto").value = dados.limite_desconto_recompensa || "";
         document.getElementById("regra-texto-cartao").value = dados.texto_cartao || dados.nome_regra || "";
         document.getElementById("regra-cor-primaria").value = dados.cor_hex || "#0d9488";
         document.getElementById("regra-cor-secundaria").value = dados.cor_secundaria || "#115e59";
         document.getElementById("regra-icone-select").value = dados.icone || "fas fa-paw";
-        if (dados.item_alvo_id) document.getElementById("regra-item-alvo-select").value = dados.item_alvo_id;
-        if (dados.recompensa_item_id) document.getElementById("regra-recompensa-item-select").value = dados.recompensa_item_id;
+
+        if (dados.item_alvo_id) {
+            const pref = dados.item_alvo_tipo ? `${dados.item_alvo_tipo}:${dados.item_alvo_id}` : null;
+            const selAlvoItem = document.getElementById("regra-item-alvo-select");
+            if (pref && selAlvoItem.querySelector(`option[value="${pref}"]`)) {
+                selAlvoItem.value = pref;
+            } else {
+                const matchOpt = selAlvoItem.querySelector(`option[value$=":${dados.item_alvo_id}"]`);
+                if (matchOpt) selAlvoItem.value = matchOpt.value;
+            }
+        }
+        if (dados.recompensa_item_id) {
+            const prefR = dados.recompensa_item_tipo ? `${dados.recompensa_item_tipo}:${dados.recompensa_item_id}` : null;
+            const selRecItem = document.getElementById("regra-recompensa-item-select");
+            if (prefR && selRecItem.querySelector(`option[value="${prefR}"]`)) {
+                selRecItem.value = prefR;
+            } else {
+                const matchOptR = selRecItem.querySelector(`option[value$=":${dados.recompensa_item_id}"]`);
+                if (matchOptR) selRecItem.value = matchOptR.value;
+            }
+        }
+
+        // Restaura dias da semana ativos
+        let diasArr = [];
+        if (Array.isArray(dados.dias_semana_ativos)) {
+            diasArr = dados.dias_semana_ativos;
+        } else if (typeof dados.dias_semana_ativos === 'string' && dados.dias_semana_ativos.trim() !== '') {
+            try { diasArr = JSON.parse(dados.dias_semana_ativos) || []; } catch (e) {}
+        }
+        diasArr.forEach(d => {
+            const cb = document.querySelector(`#box-dias-semana input[value="${d}"]`);
+            if (cb) cb.checked = true;
+        });
+
+        // Restaura política de reentrada & limites
+        document.getElementById("regra-politica-reentrada").value = dados.politica_reentrada || "reiniciar_apos_resgate";
+        document.getElementById("regra-cooldown-dias").value = dados.cooldown_dias || "30";
+        document.getElementById("regra-limite-ciclos").value = dados.limite_ciclos_cliente || "";
+        document.getElementById("regra-limite-global").value = dados.limite_usos_global || "";
+        document.getElementById("regra-prioridade").value = dados.prioridade || "10";
+        document.getElementById("regra-contagem-item").checked = parseInt(dados.contagem_por_item || 0) === 1;
+        document.getElementById("regra-acumular-sobra").checked = (dados.acumular_sobra === undefined || parseInt(dados.acumular_sobra) === 1);
+        document.getElementById("regra-auto-resgatar").checked = (dados.auto_resgatar_pdv === undefined || parseInt(dados.auto_resgatar_pdv) === 1);
+        document.getElementById("regra-acumular-outras").checked = (dados.acumular_com_outras === undefined || parseInt(dados.acumular_com_outras) === 1);
+        document.getElementById("regra-data-inicio").value = dados.data_inicio ? String(dados.data_inicio).replace(' ', 'T').slice(0, 16) : "";
+        document.getElementById("regra-data-fim").value = dados.data_fim ? String(dados.data_fim).replace(' ', 'T').slice(0, 16) : "";
     }
 
     atualizarCamposDinamicosModal();
     atualizarLivePreviewModal();
     modalConstrutor.style.display = "flex";
+    if (window.PetCrmSelect2) {
+        modalConstrutor.querySelectorAll('select').forEach(s => window.PetCrmSelect2.sync(s));
+    }
 }
 
 function fecharModalConstrutor() {
@@ -1812,6 +2132,10 @@ function atualizarCamposDinamicosModal() {
     const elRecTipo = document.getElementById("regra-recompensa-tipo");
     const boxRec = document.getElementById("box-recompensa-item");
     if (elRecTipo && boxRec) boxRec.style.display = (elRecTipo.value === "item_gratis") ? "block" : "none";
+
+    const elPol = document.getElementById("regra-politica-reentrada");
+    const boxCool = document.getElementById("box-regra-cooldown");
+    if (elPol && boxCool) boxCool.style.display = (elPol.value === "cooldown_dias") ? "block" : "none";
 }
 
 const selAlvo = document.getElementById("regra-alvo-select");
@@ -1822,6 +2146,9 @@ if (selCondTipo) selCondTipo.onchange = atualizarCamposDinamicosModal;
 
 const selRecTipo = document.getElementById("regra-recompensa-tipo");
 if (selRecTipo) selRecTipo.onchange = atualizarCamposDinamicosModal;
+
+const selPolRegra = document.getElementById("regra-politica-reentrada");
+if (selPolRegra) selPolRegra.onchange = atualizarCamposDinamicosModal;
 
 // Live Preview no Construtor
 function atualizarLivePreviewModal() {
@@ -1901,11 +2228,13 @@ document.querySelectorAll(".btn-preset-regra").forEach(btn => {
             dados.icone = "fas fa-bath";
             dados.texto_cartao = "Clube do Banho VIP";
         } else if (p === "terca_dobro") {
-            dados.nome_regra = "Terça Turbo (2x Selos)";
-            dados.tipo_mecanica = "cartao_selos";
+            dados.nome_regra = "Terça Turbo (Desconto Especial)";
+            dados.tipo_mecanica = "desconto_direto";
             dados.categoria_alvo = "todos";
             dados.condicao_tipo = "dia_semana";
             dados.condicao_valor = 1;
+            dados.dias_semana_ativos = ["ter"];
+            dados.politica_reentrada = "ilimitada_por_compra";
             dados.recompensa_tipo = "desconto_percentual";
             dados.recompensa_valor = 20;
             dados.cor_hex = "#f59e0b";
@@ -1918,6 +2247,7 @@ document.querySelectorAll(".btn-preset-regra").forEach(btn => {
             dados.categoria_alvo = "todos";
             dados.condicao_tipo = "sem_condicao";
             dados.condicao_valor = 0;
+            dados.politica_reentrada = "ilimitada_por_compra";
             dados.recompensa_tipo = "cashback";
             dados.recompensa_valor = 5;
             dados.cor_hex = "#10b981";
@@ -1930,6 +2260,8 @@ document.querySelectorAll(".btn-preset-regra").forEach(btn => {
             dados.categoria_alvo = "todos";
             dados.condicao_tipo = "aniversario";
             dados.condicao_valor = 0;
+            dados.politica_reentrada = "cooldown_dias";
+            dados.cooldown_dias = 330;
             dados.recompensa_tipo = "desconto_percentual";
             dados.recompensa_valor = 20;
             dados.cor_hex = "#ec4899";
@@ -1984,6 +2316,7 @@ function carregarRegrasModulares() {
             else if (r.recompensa_tipo === "desconto_fixo") benefDesc = `R$ ${parseFloat(r.recompensa_valor).toFixed(2)} OFF`;
             else if (r.recompensa_tipo === "item_gratis") benefDesc = `Brinde / Serviço Grátis`;
             else if (r.recompensa_tipo === "cashback") benefDesc = `${parseFloat(r.recompensa_valor)}% Cashback`;
+            else if (r.recompensa_tipo === "multiplicador_pontos") benefDesc = `${parseFloat(r.recompensa_valor)}x Pontos`;
 
             let condDesc = `A cada ${parseInt(r.condicao_valor)} compras`;
             if (r.condicao_tipo === "valor_minimo") condDesc = `Compras acima de R$ ${parseFloat(r.condicao_valor).toFixed(2)}`;
@@ -1991,12 +2324,22 @@ function carregarRegrasModulares() {
             else if (r.condicao_tipo === "aniversario") condDesc = "Mês de aniversário";
             else if (r.condicao_tipo === "sem_condicao") condDesc = "Sem valor mínimo";
 
+            const polMap = {
+                reiniciar_apos_resgate: "🔄 Reinicia após resgate",
+                reiniciar_ao_concluir: "⚡ Auto-reinicia ao concluir",
+                unica_vez: "1️⃣ Única vez por cliente",
+                cooldown_dias: `⏳ Carência ${parseInt(r.cooldown_dias || 0)}d`,
+                ilimitada_por_compra: "♾️ Recorrente/compra"
+            };
+            const polBadge = polMap[r.politica_reentrada || "reiniciar_apos_resgate"] || r.politica_reentrada;
+            const exclusivBadge = parseInt(r.acumular_com_outras ?? 1) === 1 ? "Acumulável" : "Exclusiva";
+
             html += `
                 <div class="widget-card" style="background: #ffffff; border-radius: 16px; border: 1px solid ${ativa ? "#cbd5e1" : "#e2e8f0"}; opacity: ${ativa ? "1" : "0.75"}; box-shadow: 0 4px 16px rgba(0,0,0,0.04); display: flex; flex-direction: column;">
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                         <span style="background: #f1f5f9; color: #475569; font-weight: 700; font-size: 0.75rem; padding: 4px 10px; border-radius: 20px;">
-                            ${mecDesc}
+                            ${mecDesc} &bull; P${r.prioridade || 10}
                         </span>
                         
                         <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600; color: ${ativa ? "#059669" : "#94a3b8"};">
@@ -2006,7 +2349,7 @@ function carregarRegrasModulares() {
                     </div>
 
                     <!-- Mini Cartão Estilizado -->
-                    <div style="background: linear-gradient(135deg, ${r.cor_secundaria || "#115e59"}, ${r.cor_hex || "#0d9488"}); border-radius: 14px; padding: 14px; color: white; margin-bottom: 14px; box-shadow: 0 6px 14px rgba(0,0,0,0.15);">
+                    <div style="background: linear-gradient(135deg, ${r.cor_secundaria || "#115e59"}, ${r.cor_hex || "#0d9488"}); border-radius: 14px; padding: 14px; color: white; margin-bottom: 12px; box-shadow: 0 6px 14px rgba(0,0,0,0.15);">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                             <i class="${r.icone || "fas fa-paw"}" style="font-size: 1.1rem;"></i>
                             <strong style="font-size: 0.95rem;">${r.texto_cartao || r.nome_regra}</strong>
@@ -2017,12 +2360,23 @@ function carregarRegrasModulares() {
                         </div>
                     </div>
 
+                    <!-- Badges de Reentrada & Empilhamento -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; font-size: 0.74rem;">
+                        <span style="background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                            ${polBadge}
+                        </span>
+                        <span style="background: #f8fafc; color: #475569; border: 1px solid #cbd5e1; padding: 3px 8px; border-radius: 12px; font-weight: 600;">
+                            ${exclusivBadge}
+                        </span>
+                        ${r.limite_ciclos_cliente ? `<span style="background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:12px; font-weight:600;">Máx ${r.limite_ciclos_cliente} ciclo(s)/cli</span>` : ''}
+                    </div>
+
                     <!-- Dados e KPIs -->
                     <div style="font-size: 0.85rem; color: #64748b; line-height: 1.5; margin-bottom: 14px; flex: 1;">
                         <div><strong>Alvo:</strong> ${r.categoria_alvo === "todos" ? "Todos os itens" : (r.categoria_alvo === "servicos" ? "Serviços" : (r.categoria_alvo === "produtos" ? "Produtos" : (r.item_alvo_nome || "Item específico")))}</div>
                         <div style="display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e2e8f0; font-size: 0.8rem;">
                             <span>👥 <strong>${r.total_participantes || 0}</strong> clientes</span>
-                            <span>🏆 <strong>${r.total_ciclos || 0}</strong> ciclos concluídos</span>
+                            <span>🏆 <strong>${r.total_ciclos || 0}</strong> ciclos &bull; 🌐 ${r.usos_globais_atuais || 0}${r.limite_usos_global ? '/' + r.limite_usos_global : ''}</span>
                         </div>
                     </div>
 
