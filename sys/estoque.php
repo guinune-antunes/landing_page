@@ -26,7 +26,14 @@ $produtos = $stmt_produtos->fetchAll();
                 <div class="page-controls">
                     <div class="search-container">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="productSearchInput" placeholder="Buscar produto...">
+                        <select id="productSearchInput" data-placeholder="Buscar produto ou marca..." data-s2-allow-clear="1" data-s2-tags="1" style="width: 260px;">
+                            <option value=""></option>
+                            <?php foreach ($produtos as $pBusca): ?>
+                                <option value="<?php echo htmlspecialchars($pBusca['nome_produto']); ?>">
+                                    <?php echo htmlspecialchars($pBusca['nome_produto'] . (!empty($pBusca['marca']) ? ' · ' . $pBusca['marca'] : '')); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <button class="btn btn-primary" id="add-product-btn">
                         <i class="fas fa-plus"></i> Adicionar Produto

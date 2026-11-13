@@ -1,8 +1,8 @@
 <?php
 // Configurações do Banco
-// Suporte a Docker / Produção via variáveis de ambiente com fallback para XAMPP local
+// Suporte a Docker / Produção via variáveis de ambiente com fallback isolado da branch politicacrm
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_NAME', getenv('DB_NAME') ?: 'petcrm');
+define('DB_NAME', getenv('DB_NAME') ?: 'petcrm_politicacrm');
 define('DB_USER', getenv('DB_USER') ?: 'root');
 define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
 define('DB_PORT', getenv('DB_PORT') ?: '3306');

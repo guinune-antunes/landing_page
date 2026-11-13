@@ -587,6 +587,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 inpUnidadeId.value = this.dataset.id;
                 lblUnidade.textContent = this.dataset.nome;
                 selUsuario.value = this.dataset.gestorId || '';
+                window.PetCrmSelect2?.sync(selUsuario);
                 modalGestor.style.display = 'flex';
             });
         });
@@ -646,6 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 inpSubUnidadeId.value = this.dataset.id;
                 lblSubUnidade.textContent = this.dataset.nome;
                 selSubUsuario.value = this.dataset.subId || '';
+                window.PetCrmSelect2?.sync(selSubUsuario);
                 inpInicio.value = this.dataset.inicio || '';
                 inpFim.value = this.dataset.fim || '';
                 modalSub.style.display = 'flex';

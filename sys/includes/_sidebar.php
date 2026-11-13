@@ -124,6 +124,9 @@ if (!function_exists('temPermissao')) {
                 <a href="fidelizacao.php" class="nav-item <?php echo ($paginaAtiva === 'fidelizacao') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem; display:flex; align-items:center;">
                     <i class="fas fa-award" style="color: #f1c40f;"></i> Fidelização & Ofertas
                 </a>
+                <a href="relatorio_crm.php" class="nav-item <?php echo ($paginaAtiva === 'relatorio_crm') ? 'active' : ''; ?>" style="padding-left: 36px; font-size: 0.9rem; display:flex; align-items:center;">
+                    <i class="fas fa-address-card" style="color: #38bdf8;"></i> Relatório CRM Cliente
+                </a>
             <?php endif; ?>
             <?php if ($cargo === 'Gerente'): ?>
                 <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 10px 0;"></div>
@@ -133,6 +136,11 @@ if (!function_exists('temPermissao')) {
                     <a href="relatorio_financeiro.php" class="nav-item <?php echo ($paginaAtiva === 'relatorios') ? 'active' : ''; ?>">
                         <i class="fas fa-chart-line"></i> Relatório Financeiro
                     </a>
+                    <?php if (!temPermissao('crm_vendas', $permissoes, $cargo, $modulos_instituicao)): ?>
+                        <a href="relatorio_crm.php" class="nav-item <?php echo ($paginaAtiva === 'relatorio_crm') ? 'active' : ''; ?>">
+                            <i class="fas fa-address-card"></i> Relatório CRM Cliente
+                        </a>
+                    <?php endif; ?>
                 <?php endif; ?>
 
                 <?php if (temPermissao('equipe', $permissoes, $cargo, $modulos_instituicao)): ?>

@@ -24,6 +24,7 @@ if ($id_loja <= 0) {
 }
 
 require_once __DIR__ . '/includes/unidades.php';
+require_once __DIR__ . '/includes/motor_fidelidade.php';
 $id_loja_fid = obterInstituicaoFidelidade($pdo, $id_loja);
 $ids_clientes = obterInstituicoesClientes($pdo, $id_loja);
 
@@ -41,22 +42,26 @@ try {
     if ($acao === 'listar_regras') {
         $sql = "SELECT r.*,
                        CASE 
+                         WHEN r.categoria_alvo = 'item_especifico' AND r.item_alvo_tipo = 'produto' THEN COALESCE(prod.nome_produto, CONCAT('Produto #', r.item_alvo_id))
+                         WHEN r.categoria_alvo = 'item_especifico' AND r.item_alvo_tipo = 'servico' THEN COALESCE(serv.nome_servico, CONCAT('Serviço #', r.item_alvo_id))
                          WHEN r.categoria_alvo = 'item_especifico' THEN COALESCE(prod.nome_produto, serv.nome_servico, CONCAT('Item #', r.item_alvo_id))
                          ELSE NULL 
                        END as item_alvo_nome,
                        CASE 
+                         WHEN r.recompensa_tipo = 'item_gratis' AND r.recompensa_item_tipo = 'produto' THEN COALESCE(rec_p.nome_produto, CONCAT('Produto #', r.recompensa_item_id))
+                         WHEN r.recompensa_tipo = 'item_gratis' AND r.recompensa_item_tipo = 'servico' THEN COALESCE(rec_s.nome_servico, CONCAT('Serviço #', r.recompensa_item_id))
                          WHEN r.recompensa_tipo = 'item_gratis' THEN COALESCE(rec_p.nome_produto, rec_s.nome_servico, CONCAT('Item #', r.recompensa_item_id))
                          ELSE NULL 
                        END as recompensa_item_nome,
                        (SELECT COUNT(*) FROM cliente_progresso_regras cpr WHERE cpr.regra_id = r.id) as total_participantes,
                        (SELECT COALESCE(SUM(cpr.ciclos_completados), 0) FROM cliente_progresso_regras cpr WHERE cpr.regra_id = r.id) as total_ciclos
                 FROM fidelidade_regras r
-                LEFT JOIN produtos prod ON (r.categoria_alvo = 'item_especifico' AND r.item_alvo_id = prod.id)
-                LEFT JOIN servicos serv ON (r.categoria_alvo = 'item_especifico' AND r.item_alvo_id = serv.id)
-                LEFT JOIN produtos rec_p ON (r.recompensa_tipo = 'item_gratis' AND r.recompensa_item_id = rec_p.id)
-                LEFT JOIN servicos rec_s ON (r.recompensa_tipo = 'item_gratis' AND r.recompensa_item_id = rec_s.id)
+                LEFT JOIN produtos prod ON (r.categoria_alvo = 'item_especifico' AND (r.item_alvo_tipo IS NULL OR r.item_alvo_tipo = 'produto') AND r.item_alvo_id = prod.id)
+                LEFT JOIN servicos serv ON (r.categoria_alvo = 'item_especifico' AND (r.item_alvo_tipo IS NULL OR r.item_alvo_tipo = 'servico') AND r.item_alvo_id = serv.id)
+                LEFT JOIN produtos rec_p ON (r.recompensa_tipo = 'item_gratis' AND (r.recompensa_item_tipo IS NULL OR r.recompensa_item_tipo = 'produto') AND r.recompensa_item_id = rec_p.id)
+                LEFT JOIN servicos rec_s ON (r.recompensa_tipo = 'item_gratis' AND (r.recompensa_item_tipo IS NULL OR r.recompensa_item_tipo = 'servico') AND r.recompensa_item_id = rec_s.id)
                 WHERE r.instituicao_id = ?
-                ORDER BY r.ativo DESC, r.id DESC";
+                ORDER BY r.ativo DESC, r.prioridade ASC, r.id DESC";
         $st = $pdo->prepare($sql);
         $st->execute([$id_loja_fid]);
         $regras = $st->fetchAll(PDO::FETCH_ASSOC);
@@ -73,20 +78,56 @@ try {
         $descricao = trim($params['descricao'] ?? '');
         $tipo_mecanica = $params['tipo_mecanica'] ?? 'cartao_selos';
         $categoria_alvo = $params['categoria_alvo'] ?? 'todos';
-        $item_alvo_id = !empty($params['item_alvo_id']) ? intval($params['item_alvo_id']) : null;
+
+        $alvoParsed = crmParseItemAlvo($params['item_alvo_id'] ?? null, $params['item_alvo_tipo'] ?? null);
+        $item_alvo_id = ($categoria_alvo === 'item_especifico') ? $alvoParsed['id'] : null;
+        $item_alvo_tipo = ($categoria_alvo === 'item_especifico') ? $alvoParsed['tipo'] : null;
+
         $condicao_tipo = $params['condicao_tipo'] ?? 'quantidade_compras';
         $condicao_valor = floatval(str_replace(',', '.', $params['condicao_valor'] ?? '10'));
-        
+
+        // Aceita tanto dias_semana_ativos quanto dias[] vindo do form HTML
+        $diasRaw = $params['dias_semana_ativos'] ?? ($params['dias'] ?? null);
         $dias_semana_ativos = null;
-        if (!empty($params['dias_semana_ativos'])) {
-            $dias_semana_ativos = is_array($params['dias_semana_ativos']) ? json_encode($params['dias_semana_ativos']) : $params['dias_semana_ativos'];
+        if (!empty($diasRaw)) {
+            $dias_semana_ativos = is_array($diasRaw) ? json_encode(array_values($diasRaw)) : $diasRaw;
         }
 
         $recompensa_tipo = $params['recompensa_tipo'] ?? 'desconto_percentual';
         $recompensa_valor = floatval(str_replace(',', '.', $params['recompensa_valor'] ?? '15'));
-        $recompensa_item_id = !empty($params['recompensa_item_id']) ? intval($params['recompensa_item_id']) : null;
-        $limite_desconto = !empty($params['limite_desconto_recompensa']) ? floatval(str_replace(',', '.', $params['limite_desconto_recompensa'])) : null;
-        
+        $recParsed = crmParseItemAlvo($params['recompensa_item_id'] ?? null, $params['recompensa_item_tipo'] ?? null);
+        $recompensa_item_id = ($recompensa_tipo === 'item_gratis') ? $recParsed['id'] : null;
+        $recompensa_item_tipo = ($recompensa_tipo === 'item_gratis') ? $recParsed['tipo'] : null;
+        $limite_desconto = (isset($params['limite_desconto_recompensa']) && $params['limite_desconto_recompensa'] !== '')
+            ? floatval(str_replace(',', '.', $params['limite_desconto_recompensa'])) : null;
+
+        $data_inicio = !empty($params['data_inicio']) ? str_replace('T', ' ', trim($params['data_inicio'])) : null;
+        $data_fim = !empty($params['data_fim']) ? str_replace('T', ' ', trim($params['data_fim'])) : null;
+
+        // Controles de Política de Reentrada, Limites e Empilhamento
+        $politicasPermitidas = ['unica_vez', 'reiniciar_apos_resgate', 'reiniciar_ao_concluir', 'cooldown_dias', 'ilimitada_por_compra'];
+        $politica_reentrada = in_array($params['politica_reentrada'] ?? '', $politicasPermitidas, true)
+            ? $params['politica_reentrada'] : 'reiniciar_apos_resgate';
+        $limite_ciclos_cliente = (isset($params['limite_ciclos_cliente']) && $params['limite_ciclos_cliente'] !== '' && intval($params['limite_ciclos_cliente']) > 0)
+            ? intval($params['limite_ciclos_cliente']) : null;
+        $limite_usos_global = (isset($params['limite_usos_global']) && $params['limite_usos_global'] !== '' && intval($params['limite_usos_global']) > 0)
+            ? intval($params['limite_usos_global']) : null;
+        $cooldown_dias = max(0, intval($params['cooldown_dias'] ?? 0));
+        $contagem_por_item = !empty($params['contagem_por_item']) ? 1 : 0;
+        $acumular_sobra = !isset($params['acumular_sobra']) ? 0 : (!empty($params['acumular_sobra']) ? 1 : 0);
+        // Em envio via FormData de checkboxes HTML, distingue criação/edição com campo marcador
+        if (isset($params['_form_politica'])) {
+            $contagem_por_item = isset($params['contagem_por_item']) ? 1 : 0;
+            $acumular_sobra = isset($params['acumular_sobra']) ? 1 : 0;
+            $auto_resgatar_pdv = isset($params['auto_resgatar_pdv']) ? 1 : 0;
+            $acumular_com_outras = isset($params['acumular_com_outras']) ? 1 : 0;
+        } else {
+            $auto_resgatar_pdv = isset($params['auto_resgatar_pdv']) ? (int)!empty($params['auto_resgatar_pdv']) : 1;
+            $acumular_com_outras = isset($params['acumular_com_outras']) ? (int)!empty($params['acumular_com_outras']) : 1;
+            $acumular_sobra = isset($params['acumular_sobra']) ? (int)!empty($params['acumular_sobra']) : 1;
+        }
+        $prioridade = max(1, intval($params['prioridade'] ?? 10));
+
         $cor_hex = $params['cor_hex'] ?? '#1abc9c';
         $cor_secundaria = $params['cor_secundaria'] ?? '#2c3e50';
         $icone = $params['icone'] ?? 'fas fa-paw';
@@ -100,31 +141,39 @@ try {
 
         if ($regra_id > 0) {
             $stmt = $pdo->prepare("UPDATE fidelidade_regras SET 
-                nome_regra = ?, descricao = ?, tipo_mecanica = ?, categoria_alvo = ?, item_alvo_id = ?,
+                nome_regra = ?, descricao = ?, tipo_mecanica = ?, categoria_alvo = ?, item_alvo_id = ?, item_alvo_tipo = ?,
                 condicao_tipo = ?, condicao_valor = ?, dias_semana_ativos = ?, recompensa_tipo = ?,
-                recompensa_valor = ?, recompensa_item_id = ?, limite_desconto_recompensa = ?,
-                cor_hex = ?, cor_secundaria = ?, icone = ?, texto_cartao = ?, ativo = ?
+                recompensa_valor = ?, recompensa_item_id = ?, recompensa_item_tipo = ?, limite_desconto_recompensa = ?,
+                data_inicio = ?, data_fim = ?, politica_reentrada = ?, limite_ciclos_cliente = ?, limite_usos_global = ?,
+                cooldown_dias = ?, contagem_por_item = ?, acumular_sobra = ?, auto_resgatar_pdv = ?, acumular_com_outras = ?,
+                prioridade = ?, cor_hex = ?, cor_secundaria = ?, icone = ?, texto_cartao = ?, ativo = ?
                 WHERE id = ? AND instituicao_id = ?");
             $stmt->execute([
-                $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id,
+                $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id, $item_alvo_tipo,
                 $condicao_tipo, $condicao_valor, $dias_semana_ativos, $recompensa_tipo,
-                $recompensa_valor, $recompensa_item_id, $limite_desconto,
-                $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo,
+                $recompensa_valor, $recompensa_item_id, $recompensa_item_tipo, $limite_desconto,
+                $data_inicio, $data_fim, $politica_reentrada, $limite_ciclos_cliente, $limite_usos_global,
+                $cooldown_dias, $contagem_por_item, $acumular_sobra, $auto_resgatar_pdv, $acumular_com_outras,
+                $prioridade, $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo,
                 $regra_id, $id_loja_fid
             ]);
             $msg = 'Regra de fidelidade atualizada com sucesso!';
         } else {
             $stmt = $pdo->prepare("INSERT INTO fidelidade_regras 
-                (instituicao_id, nome_regra, descricao, tipo_mecanica, categoria_alvo, item_alvo_id,
+                (instituicao_id, nome_regra, descricao, tipo_mecanica, categoria_alvo, item_alvo_id, item_alvo_tipo,
                  condicao_tipo, condicao_valor, dias_semana_ativos, recompensa_tipo,
-                 recompensa_valor, recompensa_item_id, limite_desconto_recompensa,
-                 cor_hex, cor_secundaria, icone, texto_cartao, ativo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                 recompensa_valor, recompensa_item_id, recompensa_item_tipo, limite_desconto_recompensa,
+                 data_inicio, data_fim, politica_reentrada, limite_ciclos_cliente, limite_usos_global,
+                 cooldown_dias, contagem_por_item, acumular_sobra, auto_resgatar_pdv, acumular_com_outras,
+                 prioridade, cor_hex, cor_secundaria, icone, texto_cartao, ativo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
-                $id_loja_fid, $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id,
+                $id_loja_fid, $nome_regra, $descricao, $tipo_mecanica, $categoria_alvo, $item_alvo_id, $item_alvo_tipo,
                 $condicao_tipo, $condicao_valor, $dias_semana_ativos, $recompensa_tipo,
-                $recompensa_valor, $recompensa_item_id, $limite_desconto,
-                $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo
+                $recompensa_valor, $recompensa_item_id, $recompensa_item_tipo, $limite_desconto,
+                $data_inicio, $data_fim, $politica_reentrada, $limite_ciclos_cliente, $limite_usos_global,
+                $cooldown_dias, $contagem_por_item, $acumular_sobra, $auto_resgatar_pdv, $acumular_com_outras,
+                $prioridade, $cor_hex, $cor_secundaria, $icone, $texto_cartao, $ativo
             ]);
             $regra_id = $pdo->lastInsertId();
             $msg = 'Nova regra de fidelidade criada com sucesso!';
@@ -158,132 +207,49 @@ try {
         $params = !empty($inputData) ? $inputData : $_POST;
         $itens = $params['itens'] ?? [];
         $cliente_id = !empty($params['cliente_id']) ? intval($params['cliente_id']) : null;
-        $total_venda = floatval($params['total_venda'] ?? 0);
+        $desconto_manual = floatval($params['desconto_manual'] ?? 0);
+        $whatsappParam = trim($params['cliente_whatsapp'] ?? '');
 
-        $in_cli = implode(',', array_map('intval', $ids_clientes));
-
-        // Busca regras modulares ativas
-        $stR = $pdo->prepare("SELECT * FROM fidelidade_regras WHERE instituicao_id = ? AND ativo = 1 ORDER BY id ASC");
-        $stR->execute([$id_loja_fid]);
-        $regras = $stR->fetchAll(PDO::FETCH_ASSOC);
-
-        $diasMap = ['Sun'=>'dom', 'Mon'=>'seg', 'Tue'=>'ter', 'Wed'=>'qua', 'Thu'=>'qui', 'Fri'=>'sex', 'Sat'=>'sab'];
-        $hojeDia = $diasMap[date('D')];
-
-        // Busca se é aniversário do cliente
-        $aniversario_este_mes = false;
-        $cliente_info = null;
-        if ($cliente_id > 0) {
-            $stC = $pdo->prepare("SELECT id, nome_completo, telefone, data_nascimento FROM clientes WHERE id = ? AND instituicao_id IN ($in_cli)");
-            $stC->execute([$cliente_id]);
-            $cliente_info = $stC->fetch(PDO::FETCH_ASSOC);
-            if ($cliente_info && !empty($cliente_info['data_nascimento'])) {
-                $mesNasc = date('m', strtotime($cliente_info['data_nascimento']));
-                if ($mesNasc === date('m')) {
-                    $aniversario_este_mes = true;
+        // Se o cliente ainda não foi escolhido no select mas digitou WhatsApp, tenta resolver
+        if (!$cliente_id && !empty($whatsappParam)) {
+            $digits = preg_replace('/\D/', '', $whatsappParam);
+            if (strlen($digits) >= 8) {
+                $last8 = substr($digits, -8);
+                $in_cli = implode(',', array_map('intval', $ids_clientes));
+                $stW = $pdo->prepare("SELECT id FROM clientes WHERE instituicao_id IN ($in_cli) AND REPLACE(REPLACE(REPLACE(REPLACE(telefone, '(', ''), ')', ''), '-', ''), ' ', '') LIKE ? LIMIT 1");
+                $stW->execute(["%{$last8}%"]);
+                $foundId = (int)$stW->fetchColumn();
+                if ($foundId > 0) {
+                    $cliente_id = $foundId;
                 }
             }
         }
 
-        $regras_elegiveis = [];
+        $eval = crmAvaliarCarrinhoCompleto($pdo, (int)$id_loja, (int)$id_loja_fid, $ids_clientes, $itens, $cliente_id, $desconto_manual, $params['opcoes'] ?? []);
 
-        foreach ($regras as $r) {
-            $elegivel = false;
-
-            if ($r['categoria_alvo'] === 'todos') {
-                $elegivel = count($itens) > 0;
-            } elseif ($r['categoria_alvo'] === 'servicos') {
-                foreach ($itens as $it) {
-                    if (($it['id'] ?? 0) < 0 || stripos($it['nome'] ?? '', 'Banho') !== false || stripos($it['nome'] ?? '', 'Tosa') !== false || stripos($it['nome'] ?? '', 'Consulta') !== false) {
-                        $elegivel = true;
-                        break;
-                    }
-                }
-            } elseif ($r['categoria_alvo'] === 'produtos') {
-                foreach ($itens as $it) {
-                    if (($it['id'] ?? 0) > 0) {
-                        $elegivel = true;
-                        break;
-                    }
-                }
-            } elseif ($r['categoria_alvo'] === 'item_especifico') {
-                foreach ($itens as $it) {
-                    if (($it['id'] ?? 0) == $r['item_alvo_id']) {
-                        $elegivel = true;
-                        break;
-                    }
-                }
-            }
-
-            if ($elegivel) {
-                if ($r['condicao_tipo'] === 'dia_semana' && !empty($r['dias_semana_ativos'])) {
-                    $diasAtivos = json_decode($r['dias_semana_ativos'], true) ?: [];
-                    if (!in_array($hojeDia, $diasAtivos)) {
-                        $elegivel = false;
-                    }
-                } elseif ($r['condicao_tipo'] === 'valor_minimo') {
-                    if ($total_venda < floatval($r['condicao_valor'])) {
-                        $elegivel = false;
-                    }
-                } elseif ($r['condicao_tipo'] === 'aniversario') {
-                    if (!$aniversario_este_mes) {
-                        $elegivel = false;
-                    }
-                }
-            }
-
-            if ($elegivel) {
-                $beneficio = '';
-                if ($r['recompensa_tipo'] === 'desconto_percentual') {
-                    $beneficio = number_format($r['recompensa_valor'], 0) . '% de Desconto';
-                } elseif ($r['recompensa_tipo'] === 'desconto_fixo') {
-                    $beneficio = 'R$ ' . number_format($r['recompensa_valor'], 2, ',', '.') . ' de Desconto';
-                } elseif ($r['recompensa_tipo'] === 'item_gratis') {
-                    $beneficio = 'Item / Serviço Grátis';
-                } elseif ($r['recompensa_tipo'] === 'cashback') {
-                    $beneficio = number_format($r['recompensa_valor'], 0) . '% de Cashback';
-                }
-
-                $regras_elegiveis[] = [
-                    'id' => (int)$r['id'],
-                    'nome_regra' => $r['nome_regra'],
-                    'tipo_mecanica' => $r['tipo_mecanica'],
-                    'meta' => floatval($r['condicao_valor']),
-                    'beneficio' => $beneficio,
-                    'cor_hex' => $r['cor_hex'],
-                    'cor_secundaria' => $r['cor_secundaria'],
-                    'icone' => $r['icone'],
-                    'texto_cartao' => $r['texto_cartao']
-                ];
-            }
-        }
-
-        // Se não houver regra modular customizada, verifica a config de fidelidade padrão
-        if (empty($regras_elegiveis)) {
-            $stCfg = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
-            $stCfg->execute([$id_loja_fid]);
-            $cfg = $stCfg->fetch(PDO::FETCH_ASSOC);
-
-            if ($cfg && count($itens) > 0) {
-                $regras_elegiveis[] = [
-                    'id' => 0,
-                    'nome_regra' => $cfg['texto_cartao'] ?: 'Cartão Fidelidade Pet VIP',
-                    'tipo_mecanica' => $cfg['tipo_programa'] ?: 'selos',
-                    'meta' => floatval($cfg['compras_para_recompensa'] ?: 10),
-                    'beneficio' => number_format($cfg['recompensa_valor'] ?: 15, 0) . '% de Desconto',
-                    'cor_hex' => $cfg['cor_cartao_hex'] ?: '#1abc9c',
-                    'cor_secundaria' => $cfg['cor_cartao_secundaria'] ?: '#2c3e50',
-                    'icone' => 'fas fa-paw',
-                    'texto_cartao' => $cfg['texto_cartao'] ?: 'Cartão Fidelidade Pet VIP'
-                ];
-            }
-        }
+        $elegivel = count($eval['regras']) > 0
+            || count($eval['promocoes']['aplicaveis']) > 0
+            || count($eval['promocoes']['bloqueadas']) > 0
+            || count($eval['promocoes']['pendentes_identificacao']) > 0
+            || count($eval['regras_bloqueadas']) > 0;
 
         echo json_encode([
-            'success' => true,
-            'elegivel' => count($regras_elegiveis) > 0,
-            'regras' => $regras_elegiveis,
-            'cliente' => $cliente_info
+            'success'               => true,
+            'elegivel'              => $elegivel,
+            'subtotal_bruto'        => $eval['subtotal_bruto'],
+            'desconto_promocao'     => $eval['desconto_promocao'],
+            'desconto_fidelidade'   => $eval['desconto_fidelidade'],
+            'desconto_total'        => $eval['desconto_total'],
+            'total_liquido'         => $eval['total_liquido'],
+            'cashback_gerado'       => $eval['cashback_gerado'],
+            'pontos_gerados'        => $eval['pontos_gerados'],
+            'promocoes'             => $eval['promocoes'],
+            'regras'                => $eval['regras'],
+            'regras_modulares'      => $eval['regras_modulares'],
+            'regras_bloqueadas'     => $eval['regras_bloqueadas'],
+            'cartao_classico'       => $eval['cartao_classico'],
+            'cliente'               => $eval['cliente'],
+            'cliente_id_resolvido'  => $cliente_id,
         ]);
         exit;
     }
@@ -310,35 +276,42 @@ try {
     // 1. SALVAR CONFIGURAÇÕES DO PROGRAMA DE FIDELIDADE
     // ════════════════════════════════════════════════════════════
     if ($acao === 'salvar_config') {
-        $tipo_programa = $_POST['tipo_programa'] ?? 'selos';
-        $compras_para_recompensa = max(1, intval($_POST['compras_para_recompensa'] ?? 10));
-        $recompensa_tipo = $_POST['recompensa_tipo'] ?? 'desconto_percentual';
-        $recompensa_valor = floatval(str_replace(',', '.', $_POST['recompensa_valor'] ?? '15'));
-        $limite_desconto_recompensa = floatval(str_replace(',', '.', $_POST['limite_desconto_recompensa'] ?? '50'));
-        $reais_por_ponto = max(0.1, floatval(str_replace(',', '.', $_POST['reais_por_ponto'] ?? '1')));
-        $cashback_percentual = floatval(str_replace(',', '.', $_POST['cashback_percentual'] ?? '5'));
-        $validade_meses = intval($_POST['validade_meses'] ?? 6);
-        $notificar_expiracao = isset($_POST['notificar_expiracao']) ? 1 : 0;
-        $dias_aviso_expiracao = intval($_POST['dias_aviso_expiracao'] ?? 15);
-        $notificar_whatsapp = isset($_POST['notificar_whatsapp']) ? 1 : 0;
-        $notificar_email = isset($_POST['notificar_email']) ? 1 : 0;
-        
-        // Estilo do Cartão
-        $cor_cartao_hex = $_POST['cor_cartao_hex'] ?? '#1abc9c';
-        $cor_cartao_secundaria = $_POST['cor_cartao_secundaria'] ?? '#2c3e50';
-        $estilo_cartao = $_POST['estilo_cartao'] ?? 'modern_gradient';
-        $texto_cartao = trim($_POST['texto_cartao'] ?? 'Cartão Fidelidade Pet VIP');
+        $existe = $pdo->prepare("SELECT * FROM fidelidade_config WHERE instituicao_id = ?");
+        $existe->execute([$id_loja_fid]);
+        $row = $existe->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        // Aceleradores (JSON)
-        $aceleradores = [
-            'terca_dobro' => isset($_POST['acelerador_terca']),
-            'aniversario' => isset($_POST['acelerador_aniver']),
-            'servicos_bonus' => isset($_POST['acelerador_servicos'])
-        ];
-        $regras_aceleradores = json_encode($aceleradores);
+        // Preserva campos já gravados caso o formulário parcial não os envie
+        $tipo_programa = $_POST['tipo_programa'] ?? ($row['tipo_programa'] ?? 'selos');
+        $compras_para_recompensa = max(1, intval($_POST['compras_para_recompensa'] ?? ($row['compras_para_recompensa'] ?? 10)));
+        $recompensa_tipo = $_POST['recompensa_tipo'] ?? ($row['recompensa_tipo'] ?? 'desconto_percentual');
+        $recompensa_valor = floatval(str_replace(',', '.', $_POST['recompensa_valor'] ?? ($row['recompensa_valor'] ?? '15')));
+        $limite_desconto_recompensa = floatval(str_replace(',', '.', $_POST['limite_desconto_recompensa'] ?? ($row['limite_desconto_recompensa'] ?? '50')));
+        $reais_por_ponto = max(0.1, floatval(str_replace(',', '.', $_POST['reais_por_ponto'] ?? ($row['reais_por_ponto'] ?? '1'))));
+        $cashback_percentual = floatval(str_replace(',', '.', $_POST['cashback_percentual'] ?? ($row['cashback_percentual'] ?? '5')));
+        $validade_meses = intval($_POST['validade_meses'] ?? ($row['validade_meses'] ?? 6));
+        $notificar_expiracao = array_key_exists('notificar_expiracao', $_POST) ? 1 : (int)($row['notificar_expiracao'] ?? 1);
+        $dias_aviso_expiracao = intval($_POST['dias_aviso_expiracao'] ?? ($row['dias_aviso_expiracao'] ?? 15));
+        $notificar_whatsapp = array_key_exists('notificar_whatsapp', $_POST) ? 1 : (int)($row['notificar_whatsapp'] ?? 1);
+        $notificar_email = array_key_exists('notificar_email', $_POST) ? 1 : (int)($row['notificar_email'] ?? 0);
+
+        $cor_cartao_hex = $_POST['cor_cartao_hex'] ?? ($row['cor_cartao_hex'] ?? '#1abc9c');
+        $cor_cartao_secundaria = $_POST['cor_cartao_secundaria'] ?? ($row['cor_cartao_secundaria'] ?? '#2c3e50');
+        $estilo_cartao = $_POST['estilo_cartao'] ?? ($row['estilo_cartao'] ?? 'modern_gradient');
+        $texto_cartao = trim($_POST['texto_cartao'] ?? ($row['texto_cartao'] ?? 'Cartão Fidelidade Pet VIP'));
+
+        if (isset($_POST['aceleradores_enviados'])) {
+            $aceleradores = [
+                'terca_dobro' => isset($_POST['acelerador_terca']),
+                'aniversario' => isset($_POST['acelerador_aniver']),
+                'servicos_bonus' => isset($_POST['acelerador_servicos'])
+            ];
+            $regras_aceleradores = json_encode($aceleradores);
+        } else {
+            $regras_aceleradores = $row['regras_aceleradores'] ?? json_encode(['terca_dobro' => true, 'aniversario' => true, 'servicos_bonus' => true]);
+        }
 
         // Upload de Logo se houver
-        $logo_cartao = null;
+        $logo_cartao = $row['logo_cartao'] ?? null;
         if (isset($_FILES['logo_cartao']) && $_FILES['logo_cartao']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['logo_cartao']['name'], PATHINFO_EXTENSION));
             if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'svg'])) {
@@ -350,23 +323,22 @@ try {
             }
         }
 
-        // Tiers
-        $tiers = [
-            ['nome' => 'Bronze', 'meta' => floatval($_POST['tier_bronze_meta'] ?? 0), 'beneficio' => '1x pontos + Selos normais'],
-            ['nome' => 'Prata', 'meta' => floatval($_POST['tier_prata_meta'] ?? 500), 'beneficio' => '1.2x pontos + 5% desc. no aniversário'],
-            ['nome' => 'Ouro VIP', 'meta' => floatval($_POST['tier_ouro_meta'] ?? 1500), 'beneficio' => '1.5x pontos + Brinde na tosa + Fila VIP']
-        ];
-        $tiers_config = json_encode($tiers);
-
-        // Verifica se já existe registro para a instituição
-        $existe = $pdo->prepare("SELECT id, logo_cartao FROM fidelidade_config WHERE instituicao_id = ?");
-        $existe->execute([$id_loja_fid]);
-        $row = $existe->fetch(PDO::FETCH_ASSOC);
+        if (isset($_POST['tier_bronze_meta']) || isset($_POST['tier_prata_meta']) || isset($_POST['tier_ouro_meta'])) {
+            $tiers = [
+                ['nome' => 'Bronze', 'meta' => floatval($_POST['tier_bronze_meta'] ?? 0), 'beneficio' => '1x pontos + Selos normais'],
+                ['nome' => 'Prata', 'meta' => floatval($_POST['tier_prata_meta'] ?? 500), 'beneficio' => '1.2x pontos + 5% desc. no aniversário'],
+                ['nome' => 'Ouro VIP', 'meta' => floatval($_POST['tier_ouro_meta'] ?? 1500), 'beneficio' => '1.5x pontos + Brinde na tosa + Fila VIP']
+            ];
+            $tiers_config = json_encode($tiers);
+        } else {
+            $tiers_config = $row['tiers_config'] ?? json_encode([
+                ['nome' => 'Bronze', 'meta' => 0, 'beneficio' => '1x pontos + Selos normais'],
+                ['nome' => 'Prata', 'meta' => 500, 'beneficio' => '1.2x pontos + 5% desc. no aniversário'],
+                ['nome' => 'Ouro VIP', 'meta' => 1500, 'beneficio' => '1.5x pontos + Brinde na tosa + Fila VIP']
+            ]);
+        }
 
         if ($row) {
-            if (!$logo_cartao) {
-                $logo_cartao = $row['logo_cartao'];
-            }
             $sql = "UPDATE fidelidade_config SET 
                     tipo_programa = ?, compras_para_recompensa = ?, recompensa_tipo = ?, recompensa_valor = ?, 
                     limite_desconto_recompensa = ?, reais_por_ponto = ?, cashback_percentual = ?, validade_meses = ?, 
@@ -409,7 +381,7 @@ try {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 2. SALVAR / EDITAR PROMOÇÃO COM TEMPORIZADOR E FOTO
+    // 2. SALVAR / EDITAR PROMOÇÃO COM TEMPORIZADOR, FOTO E POLÍTICA DE REENTRADA
     // ════════════════════════════════════════════════════════════
     if ($acao === 'salvar_promocao') {
         $promo_id = intval($_POST['promo_id'] ?? 0);
@@ -417,9 +389,21 @@ try {
         $descricao = trim($_POST['descricao'] ?? '');
         $produto_id = !empty($_POST['produto_id']) ? intval($_POST['produto_id']) : null;
         $desconto_percentual = floatval(str_replace(',', '.', $_POST['desconto_percentual'] ?? '0'));
-        $data_inicio = $_POST['data_inicio'] ?? date('Y-m-d H:i:s');
-        $data_fim = $_POST['data_fim'] ?? date('Y-m-d H:i:s', strtotime('+7 days'));
-        $ativo = isset($_POST['ativo']) ? 1 : 0;
+        $data_inicio = str_replace('T', ' ', trim($_POST['data_inicio'] ?? date('Y-m-d H:i:s')));
+        $data_fim = str_replace('T', ' ', trim($_POST['data_fim'] ?? date('Y-m-d H:i:s', strtotime('+7 days'))));
+        $ativo = isset($_POST['_form_promo']) ? (isset($_POST['ativo']) ? 1 : 0) : (isset($_POST['ativo']) ? intval($_POST['ativo']) : 1);
+
+        $polsPromo = ['ilimitada', 'unica_vez', 'uma_por_dia', 'cooldown_dias'];
+        $politica_reentrada = in_array($_POST['politica_reentrada'] ?? '', $polsPromo, true)
+            ? $_POST['politica_reentrada'] : 'ilimitada';
+        $limite_usos_cliente = (isset($_POST['limite_usos_cliente']) && $_POST['limite_usos_cliente'] !== '' && intval($_POST['limite_usos_cliente']) > 0)
+            ? intval($_POST['limite_usos_cliente']) : null;
+        $cooldown_dias = max(0, intval($_POST['cooldown_dias'] ?? 0));
+        $limite_usos_global = (isset($_POST['limite_usos_global']) && $_POST['limite_usos_global'] !== '' && intval($_POST['limite_usos_global']) > 0)
+            ? intval($_POST['limite_usos_global']) : null;
+        $aplicar_automatico_pdv = isset($_POST['_form_promo'])
+            ? (isset($_POST['aplicar_automatico_pdv']) ? 1 : 0)
+            : (isset($_POST['aplicar_automatico_pdv']) ? intval($_POST['aplicar_automatico_pdv']) : 1);
 
         if (empty($titulo)) {
             echo json_encode(['success' => false, 'message' => 'Informe o título da promoção.']);
@@ -453,9 +437,7 @@ try {
         }
 
         if ($promo_id > 0) {
-            // Edição
             if (!$imagem_url) {
-                // Mantém imagem anterior
                 $stImg = $pdo->prepare("SELECT imagem_url FROM promocoes WHERE id = ? AND instituicao_id = ?");
                 $stImg->execute([$promo_id, $id_loja]);
                 $imagem_url = $stImg->fetchColumn();
@@ -464,32 +446,38 @@ try {
             $sql = "UPDATE promocoes SET 
                     titulo = ?, descricao = ?, produto_id = ?, desconto_percentual = ?, 
                     preco_original = ?, preco_promocional = ?, imagem_url = ?, 
-                    data_inicio = ?, data_fim = ?, ativo = ? 
+                    data_inicio = ?, data_fim = ?, ativo = ?,
+                    politica_reentrada = ?, limite_usos_cliente = ?, cooldown_dias = ?,
+                    limite_usos_global = ?, aplicar_automatico_pdv = ?
                     WHERE id = ? AND instituicao_id = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $titulo, $descricao, $produto_id, $desconto_percentual,
                 $preco_original, $preco_promocional, $imagem_url,
                 $data_inicio, $data_fim, $ativo,
+                $politica_reentrada, $limite_usos_cliente, $cooldown_dias,
+                $limite_usos_global, $aplicar_automatico_pdv,
                 $promo_id, $id_loja
             ]);
             $msg = 'Promoção atualizada com sucesso!';
         } else {
-            // Inserção
             $sql = "INSERT INTO promocoes 
                     (instituicao_id, titulo, descricao, produto_id, desconto_percentual, 
-                     preco_original, preco_promocional, imagem_url, data_inicio, data_fim, ativo)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                     preco_original, preco_promocional, imagem_url, data_inicio, data_fim, ativo,
+                     politica_reentrada, limite_usos_cliente, cooldown_dias, limite_usos_global, aplicar_automatico_pdv)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 $id_loja, $titulo, $descricao, $produto_id, $desconto_percentual,
                 $preco_original, $preco_promocional, $imagem_url,
-                $data_inicio, $data_fim, $ativo
+                $data_inicio, $data_fim, $ativo,
+                $politica_reentrada, $limite_usos_cliente, $cooldown_dias, $limite_usos_global, $aplicar_automatico_pdv
             ]);
-            $msg = 'Promoção com foto e limitador de tempo criada com sucesso!';
+            $promo_id = $pdo->lastInsertId();
+            $msg = 'Promoção salva com política de reentrada e desconto automático no PDV!';
         }
 
-        echo json_encode(['success' => true, 'message' => $msg]);
+        echo json_encode(['success' => true, 'message' => $msg, 'promo_id' => $promo_id]);
         exit;
     }
 
@@ -622,30 +610,121 @@ try {
     }
 
     // ════════════════════════════════════════════════════════════
-    // 6. BUSCA DE CLIENTE PARA PONTUAÇÃO RÁPIDA NO BALCÃO
+    // 6. BUSCA E OPERAÇÃO DETALHADA DO CLIENTE NO BALCÃO (INCLUI REGRAS MODULARES)
     // ════════════════════════════════════════════════════════════
+    if ($acao === 'resgatar_regra_modular') {
+        $params = !empty($inputData) ? $inputData : $_POST;
+        $cliente_id = intval($params['cliente_id'] ?? 0);
+        $regra_id = intval($params['regra_id'] ?? 0);
+        $operador = $_SESSION['usuario_nome'] ?? 'Atendente';
+
+        if ($cliente_id <= 0 || $regra_id <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Informe cliente e regra válidos.']);
+            exit;
+        }
+
+        $res = crmResgatarRegraModularBalcao($pdo, (int)$id_loja_fid, $cliente_id, $regra_id, $operador);
+        echo json_encode($res);
+        exit;
+    }
+
+    if ($acao === 'detalhar_cliente_regras') {
+        $cliente_id = intval($_GET['cliente_id'] ?? $_POST['cliente_id'] ?? 0);
+        if ($cliente_id <= 0) {
+            echo json_encode(['success' => false, 'message' => 'Cliente inválido.']);
+            exit;
+        }
+
+        $stR = $pdo->prepare("SELECT r.*, cpr.progresso_atual, cpr.ciclos_completados, cpr.recompensa_disponivel,
+                                     cpr.ultimo_uso, cpr.ultimo_resgate_em, cpr.bloqueado_reentrada
+                              FROM fidelidade_regras r
+                              LEFT JOIN cliente_progresso_regras cpr ON cpr.regra_id = r.id AND cpr.cliente_id = ?
+                              WHERE r.instituicao_id = ? AND r.ativo = 1
+                              ORDER BY r.prioridade ASC, r.id ASC");
+        $stR->execute([$cliente_id, $id_loja_fid]);
+        $regras = $stR->fetchAll(PDO::FETCH_ASSOC);
+
+        $agoraTs = time();
+        $regrasDetalhe = [];
+        foreach ($regras as $r) {
+            $progRow = ($r['progresso_atual'] !== null || $r['ciclos_completados'] !== null) ? $r : null;
+            $status = crmAvaliarPoliticaReentradaRegra($r, $progRow, $agoraTs);
+            $regrasDetalhe[] = [
+                'id'                   => (int)$r['id'],
+                'nome_regra'           => $r['nome_regra'],
+                'tipo_mecanica'        => $r['tipo_mecanica'],
+                'politica_reentrada'   => $r['politica_reentrada'] ?? 'reiniciar_apos_resgate',
+                'meta'                 => (int)$r['condicao_valor'],
+                'progresso_atual'      => (int)($r['progresso_atual'] ?? 0),
+                'ciclos_completados'   => (int)($r['ciclos_completados'] ?? 0),
+                'recompensa_disponivel'=> !empty($r['recompensa_disponivel']),
+                'bloqueado_reentrada'  => !empty($r['bloqueado_reentrada']),
+                'ultimo_resgate_em'    => $r['ultimo_resgate_em'] ?? null,
+                'status_codigo'        => $status['status_codigo'],
+                'status_label'         => $status['status_label'],
+                'motivo_bloqueio'      => $status['motivo_bloqueio'],
+            ];
+        }
+
+        $stPU = $pdo->prepare("SELECT pu.*, p.titulo
+                               FROM promocao_usos pu
+                               JOIN promocoes p ON p.id = pu.promocao_id
+                               WHERE pu.cliente_id = ? AND pu.instituicao_id = ?
+                               ORDER BY pu.data_uso DESC LIMIT 10");
+        $stPU->execute([$cliente_id, $id_loja]);
+        $promosUsadas = $stPU->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode([
+            'success' => true,
+            'regras' => $regrasDetalhe,
+            'promocoes_usadas' => $promosUsadas
+        ]);
+        exit;
+    }
+
     if ($acao === 'buscar_cliente_fidelidade') {
-        $termo = trim($_GET['termo'] ?? '');
-        if (strlen($termo) < 2) {
-            echo json_encode(['success' => true, 'clientes' => []]);
+        $termo = trim($_GET['q'] ?? $_GET['termo'] ?? '');
+        $isSelect2 = !empty($_GET['select2']);
+        if (!$isSelect2 && strlen($termo) < 2) {
+            echo json_encode(['success' => true, 'clientes' => [], 'results' => []]);
             exit;
         }
 
         $in_cli = implode(',', array_map('intval', $ids_clientes));
+        $whereBusca = $termo !== ''
+            ? " AND (c.nome_completo LIKE ? OR c.cpf LIKE ? OR c.telefone LIKE ?)"
+            : "";
         $sql = "SELECT c.id, c.nome_completo, c.telefone, c.cpf, 
                        COALESCE(cf.selos_atuais, 0) as selos,
+                       COALESCE(cf.ciclos_completados, 0) as ciclos_completados,
                        COALESCE(cf.pontos_acumulados, 0) as pontos,
-                       COALESCE(cf.tier_atual, 'Bronze') as tier
+                       COALESCE(cf.saldo_cashback, 0.00) as saldo_cashback,
+                       COALESCE(cf.tier_atual, 'Bronze') as tier,
+                       (SELECT COUNT(*) FROM cliente_progresso_regras cpr WHERE cpr.cliente_id = c.id AND cpr.instituicao_id = ? AND cpr.recompensa_disponivel = 1) as regras_prontas
                 FROM clientes c
                 LEFT JOIN cliente_fidelidade cf ON cf.cliente_id = c.id AND cf.instituicao_id = ?
-                WHERE c.instituicao_id IN ($in_cli) AND (c.nome_completo LIKE ? OR c.cpf LIKE ? OR c.telefone LIKE ?)
-                ORDER BY c.nome_completo ASC LIMIT 10";
+                WHERE c.instituicao_id IN ($in_cli){$whereBusca}
+                ORDER BY c.nome_completo ASC LIMIT 20";
         $st = $pdo->prepare($sql);
-        $like = "%$termo%";
-        $st->execute([$id_loja_fid, $like, $like, $like]);
+        $paramsCli = [$id_loja_fid, $id_loja_fid];
+        if ($termo !== '') {
+            $like = "%$termo%";
+            array_push($paramsCli, $like, $like, $like);
+        }
+        $st->execute($paramsCli);
         $clientes = $st->fetchAll(PDO::FETCH_ASSOC);
 
-        echo json_encode(['success' => true, 'clientes' => $clientes]);
+        $resultsS2 = [];
+        foreach ($clientes as $cliRow) {
+            $sub = $cliRow['telefone'] ? $cliRow['telefone'] : ($cliRow['cpf'] ?: 'sem telefone');
+            $resultsS2[] = [
+                'id' => (int)$cliRow['id'],
+                'text' => $cliRow['nome_completo'] . " ({$sub}) — Selos: " . (int)$cliRow['selos'] . " · " . $cliRow['tier'],
+                'cliente' => $cliRow,
+            ];
+        }
+
+        echo json_encode(['success' => true, 'clientes' => $clientes, 'results' => $resultsS2]);
         exit;
     }
 

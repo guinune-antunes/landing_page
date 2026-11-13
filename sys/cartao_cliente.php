@@ -1,6 +1,7 @@
 <?php
 require 'conexao.php';
 require_once __DIR__ . '/includes/unidades.php';
+require_once __DIR__ . '/includes/motor_fidelidade.php';
 
 $cliente_id = intval($_GET['cliente_id'] ?? 0);
 $loja_id = intval($_GET['loja_id'] ?? 0);
@@ -43,7 +44,8 @@ if (!$cfg) {
 
 // Busca dados do cliente ou cria fictício para preview
 $cliente = null;
-$fid = ['selos_atuais' => 4, 'ciclos_completados' => 1, 'pontos_acumulados' => 120, 'tier_atual' => 'Prata'];
+$fid = ['selos_atuais' => 4, 'ciclos_completados' => 1, 'pontos_acumulados' => 120, 'saldo_cashback' => 0.00, 'tier_atual' => 'Prata'];
+$regrasCliente = [];
 
 if ($cliente_id > 0) {
     $ids_clientes = obterInstituicoesClientes($pdo, $loja_id);
@@ -54,29 +56,29 @@ if ($cliente_id > 0) {
     $cliente = $stCli->fetch(PDO::FETCH_ASSOC);
 
     if ($cliente) {
-        // Verifica se há progresso em alguma regra modular ativa
-        $stRegraAtiva = $pdo->prepare("SELECT r.*, cpr.progresso_atual, cpr.ciclos_completados, cpr.recompensa_disponivel
-                                       FROM cliente_progresso_regras cpr
-                                       JOIN fidelidade_regras r ON cpr.regra_id = r.id
-                                       WHERE cpr.cliente_id = ? AND r.instituicao_id = ? AND r.ativo = 1
-                                       ORDER BY cpr.ultimo_uso DESC LIMIT 1");
-        $stRegraAtiva->execute([$cliente_id, $loja_fid_id]);
-        $regraAtiva = $stRegraAtiva->fetch(PDO::FETCH_ASSOC);
-
-        if ($regraAtiva) {
-            $cfg['texto_cartao'] = $regraAtiva['texto_cartao'] ?: $regraAtiva['nome_regra'];
-            $cfg['cor_cartao_hex'] = $regraAtiva['cor_hex'] ?: $cfg['cor_cartao_hex'];
-            $cfg['cor_cartao_secundaria'] = $regraAtiva['cor_secundaria'] ?: $cfg['cor_cartao_secundaria'];
-            $cfg['compras_para_recompensa'] = max(2, (int)$regraAtiva['condicao_valor']);
-            $cfg['recompensa_valor'] = $regraAtiva['recompensa_valor'];
-            $cfg['recompensa_tipo'] = $regraAtiva['recompensa_tipo'];
-            $fid['selos_atuais'] = (int)$regraAtiva['progresso_atual'];
-            $fid['ciclos_completados'] = (int)$regraAtiva['ciclos_completados'];
+        $stFid = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE cliente_id = ? AND instituicao_id = ?");
+        $stFid->execute([$cliente_id, $loja_fid_id]);
+        $fidReal = $stFid->fetch(PDO::FETCH_ASSOC);
+        if ($fidReal) {
+            $fid = $fidReal;
         } else {
-            $stFid = $pdo->prepare("SELECT * FROM cliente_fidelidade WHERE cliente_id = ? AND instituicao_id = ?");
-            $stFid->execute([$cliente_id, $loja_fid_id]);
-            $fidReal = $stFid->fetch(PDO::FETCH_ASSOC);
-            if ($fidReal) $fid = $fidReal;
+            $fid = ['selos_atuais' => 0, 'ciclos_completados' => 0, 'pontos_acumulados' => 0, 'saldo_cashback' => 0.00, 'tier_atual' => 'Bronze'];
+        }
+
+        // Busca todas as regras modulares ativas da loja com progresso real deste cliente
+        $stMod = $pdo->prepare("SELECT r.*, cpr.progresso_atual, cpr.ciclos_completados, cpr.recompensa_disponivel,
+                                       cpr.ultimo_resgate_em, cpr.bloqueado_reentrada
+                                FROM fidelidade_regras r
+                                LEFT JOIN cliente_progresso_regras cpr ON cpr.regra_id = r.id AND cpr.cliente_id = ?
+                                WHERE r.instituicao_id = ? AND r.ativo = 1
+                                ORDER BY r.prioridade ASC, r.id DESC");
+        $stMod->execute([$cliente_id, $loja_fid_id]);
+        $agoraTs = time();
+        foreach ($stMod->fetchAll(PDO::FETCH_ASSOC) as $rm) {
+            $progRow = ($rm['progresso_atual'] !== null || $rm['ciclos_completados'] !== null) ? $rm : null;
+            $statusReentrada = crmAvaliarPoliticaReentradaRegra($rm, $progRow, $agoraTs);
+            $rm['_status'] = $statusReentrada;
+            $regrasCliente[] = $rm;
         }
     }
 }
@@ -90,13 +92,18 @@ if (!$cliente) {
     ];
 }
 
-$totalSelos = (int)($cfg['compras_para_recompensa'] ?? 10);
+$totalSelos = max(2, (int)($cfg['compras_para_recompensa'] ?? 10));
 $selosAtuais = (int)($fid['selos_atuais'] ?? 0);
 $percentualProgresso = min(100, round(($selosAtuais / $totalSelos) * 100));
 
-// Busca promoções ativas da loja para mostrar no cartão virtual
-$stPromos = $pdo->prepare("SELECT * FROM promocoes WHERE instituicao_id = ? AND ativo = 1 AND data_fim >= NOW() ORDER BY id DESC LIMIT 4");
-$stPromos->execute([$loja_id]);
+// Busca promoções ativas da loja + verifica se o cliente já usou
+$stPromos = $pdo->prepare("SELECT p.*,
+                          (SELECT COUNT(*) FROM promocao_usos pu WHERE pu.promocao_id = p.id AND pu.cliente_id = ?) as usos_cliente,
+                          (SELECT MAX(pu.data_uso) FROM promocao_usos pu WHERE pu.promocao_id = p.id AND pu.cliente_id = ?) as ultimo_uso_cliente
+                          FROM promocoes p
+                          WHERE p.instituicao_id = ? AND p.ativo = 1 AND p.data_fim >= NOW()
+                          ORDER BY p.id DESC LIMIT 6");
+$stPromos->execute([$cliente_id, $cliente_id, $loja_id]);
 $promos = $stPromos->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
@@ -523,9 +530,12 @@ $promos = $stPromos->fetchAll(PDO::FETCH_ASSOC);
             <div class="client-meta">
                 <small>Titular do Cartão</small>
                 <strong><?php echo htmlspecialchars($cliente['nome_completo']); ?></strong>
-                <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 3px;">
+                <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 3px;">
                     <?php if (!empty($fid['pontos_acumulados'])): ?>
-                        <span>⭐ <?php echo $fid['pontos_acumulados']; ?> Pontos</span> &bull; 
+                        <span>⭐ <?php echo (int)$fid['pontos_acumulados']; ?> pts</span> &bull;
+                    <?php endif; ?>
+                    <?php if (!empty($fid['saldo_cashback']) && (float)$fid['saldo_cashback'] > 0): ?>
+                        <span>💰 R$ <?php echo number_format((float)$fid['saldo_cashback'], 2, ',', '.'); ?> cashback</span> &bull;
                     <?php endif; ?>
                     <span>ID: #<?php echo str_pad($cliente['id'], 5, '0', STR_PAD_LEFT); ?></span>
                 </div>
@@ -536,6 +546,37 @@ $promos = $stPromos->fetchAll(PDO::FETCH_ASSOC);
             </div>
         </div>
     </div>
+
+    <!-- 1B. REGRAS & CAMPANHAS ATIVAS DO CLIENTE -->
+    <?php if (!empty($regrasCliente)): ?>
+        <div class="promos-card">
+            <h4><i class="fas fa-layer-group" style="color: #0d9488;"></i> Seus Clubes & Regras Ativas</h4>
+            <?php foreach ($regrasCliente as $rm):
+                $stInfo = $rm['_status'];
+                $metaRm = ($rm['condicao_tipo'] === 'quantidade_compras') ? max(1, (int)$rm['condicao_valor']) : 0;
+                $progRm = (int)($rm['progresso_atual'] ?? 0);
+                $ciclosRm = (int)($rm['ciclos_completados'] ?? 0);
+            ?>
+                <div class="promo-item" style="justify-content: space-between;">
+                    <div style="flex: 1;">
+                        <h5 style="font-size: 0.9rem; color: #0f172a; margin-bottom: 2px;">
+                            <i class="<?php echo htmlspecialchars($rm['icone'] ?: 'fas fa-paw'); ?>" style="color: <?php echo htmlspecialchars($rm['cor_hex'] ?: '#0d9488'); ?>;"></i>
+                            <?php echo htmlspecialchars($rm['texto_cartao'] ?: $rm['nome_regra']); ?>
+                        </h5>
+                        <div style="font-size: 0.78rem; color: #64748b;">
+                            <?php if ($metaRm > 0): ?>
+                                Progresso: <strong><?php echo $progRm; ?> / <?php echo $metaRm; ?></strong> &bull;
+                            <?php endif; ?>
+                            Ciclos: <strong><?php echo $ciclosRm; ?></strong>
+                        </div>
+                        <div style="font-size: 0.74rem; margin-top: 2px; font-weight: 600; color: <?php echo !empty($stInfo['motivo_bloqueio']) ? '#dc2626' : '#0d9488'; ?>;">
+                            <?php echo htmlspecialchars($stInfo['motivo_bloqueio'] ?: $stInfo['status_label']); ?>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
     <!-- 2. IDENTIFICAÇÃO RÁPIDA NO BALCÃO -->
     <div class="auth-card">
@@ -568,6 +609,24 @@ $promos = $stPromos->fetchAll(PDO::FETCH_ASSOC);
                                 <span class="new-price">R$ <?php echo number_format($p['preco_promocional'], 2, ',', '.'); ?></span>
                             <?php endif; ?>
                             <span class="discount-tag">-<?php echo (int)$p['desconto_percentual']; ?>% OFF</span>
+                        </div>
+                        <?php
+                            $polPromo = $p['politica_reentrada'] ?? 'ilimitada';
+                            $usosCli = (int)($p['usos_cliente'] ?? 0);
+                            $jaUsouUnica = ($polPromo === 'unica_vez' && $usosCli >= 1);
+                            $limCliP = !empty($p['limite_usos_cliente']) ? (int)$p['limite_usos_cliente'] : null;
+                            $atingiuLimCli = ($limCliP !== null && $usosCli >= $limCliP);
+                        ?>
+                        <div style="font-size: 0.73rem; margin-top: 3px; font-weight: 600; color: <?php echo ($jaUsouUnica || $atingiuLimCli) ? '#dc2626' : '#059669'; ?>;">
+                            <?php if ($jaUsouUnica): ?>
+                                ⛔ Já utilizada por você (válida 1x por cliente)
+                            <?php elseif ($atingiuLimCli): ?>
+                                ⛔ Limite de <?php echo $limCliP; ?>x utilizado por você
+                            <?php elseif ($polPromo === 'unica_vez'): ?>
+                                ✨ Disponível (1x por cliente)
+                            <?php else: ?>
+                                ✓ Disponível no caixa
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

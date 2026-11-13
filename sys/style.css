@@ -3547,3 +3547,285 @@ html, body {
 .dark-theme .view-tab-btn.active {
     color: #ffffff;
 }
+
+/* ==========================================================================
+   SELECT2 — TEMA GLOBAL PETCRM (CLARO, ESCURO, MODAIS & BARRAS DE PESQUISA)
+   ========================================================================== */
+.select2-container {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 0.9rem !important;
+    max-width: 100%;
+}
+
+.select2-container--default .select2-selection--single {
+    background-color: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: var(--text-dark);
+    line-height: 38px;
+    padding-left: 12px;
+    padding-right: 34px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: var(--text-muted);
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 38px;
+    right: 8px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear {
+    color: #94a3b8;
+    font-weight: 700;
+    margin-right: 18px;
+    font-size: 1.05rem;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__clear:hover {
+    color: #ef4444;
+}
+
+.select2-container--default.select2-container--open .select2-selection--single,
+.select2-container--default.select2-container--focus .select2-selection--single {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(26, 188, 156, 0.16);
+    outline: none;
+}
+
+.select2-container--default.select2-container--disabled .select2-selection--single {
+    background-color: var(--bg-disabled);
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.select2-dropdown {
+    background-color: var(--bg-widget);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+    overflow: hidden;
+    z-index: 999999 !important;
+}
+
+.select2-container--open {
+    z-index: 999999 !important;
+}
+
+.select2-container--default .select2-search--dropdown {
+    padding: 8px;
+    background-color: var(--bg-widget);
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field {
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    padding: 7px 10px;
+    font-family: inherit;
+    font-size: 0.88rem;
+    color: var(--text-dark);
+    background-color: var(--bg-main);
+    outline: none;
+}
+
+.select2-container--default .select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--color-primary);
+}
+
+.select2-container--default .select2-results__option {
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    color: var(--text-dark);
+}
+
+.select2-container--default .select2-results__group {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+    color: var(--color-primary-dark);
+    background: rgba(26, 188, 156, 0.08);
+    padding: 6px 10px;
+}
+
+.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable,
+.select2-container--default .select2-results__option--highlighted[aria-selected] {
+    background-color: var(--color-primary);
+    color: #ffffff;
+}
+
+.select2-container--default .select2-results__option--selected,
+.select2-container--default .select2-results__option[aria-selected="true"] {
+    background-color: rgba(26, 188, 156, 0.14);
+    color: var(--color-primary-dark);
+    font-weight: 600;
+}
+
+/* Barra de pesquisa global no header com Select2 */
+.header-search.header-search-select2 {
+    min-width: 310px;
+    max-width: 440px;
+    flex: 1;
+    padding: 4px 12px;
+    border: 1px solid var(--border-color);
+}
+
+.header-search.header-search-select2 .select2-container--default .select2-selection--single {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    height: 32px;
+}
+
+.header-search.header-search-select2 .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 32px;
+    padding-left: 8px;
+    font-size: 0.88rem;
+}
+
+.header-search.header-search-select2 .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 30px;
+}
+
+/* Search container & filtros de página usando Select2 */
+.page-controls .search-container .select2-container {
+    min-width: 240px;
+}
+
+.page-controls .search-container .select2-container--default .select2-selection--single {
+    padding-left: 26px;
+    border-radius: 8px;
+}
+
+/* Seletor de unidade no header */
+.unit-pill-wrap .select2-container--default .select2-selection--single {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    height: 26px;
+}
+
+.unit-pill-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #16a085 !important;
+    font-weight: 600;
+    font-size: 0.84rem;
+    line-height: 26px;
+    padding-left: 2px;
+    padding-right: 20px;
+}
+
+.unit-pill-wrap .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 24px;
+    right: 0;
+}
+
+/* Terminal de balcão (fundo escuro dedicado na aba 4 de fidelizacao.php) */
+.balcao-terminal .select2-container--default .select2-selection--single {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+    height: 44px;
+}
+
+.balcao-terminal .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #f8fafc;
+    line-height: 42px;
+}
+
+.balcao-terminal .select2-container--default .select2-selection--single .select2-selection__placeholder {
+    color: #94a3b8;
+}
+
+/* Tema Escuro Completo para Select2 */
+.dark-theme .select2-container--default .select2-selection--single {
+    background-color: #0e172a;
+    border-color: #283a5c;
+}
+
+.dark-theme .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #f1f5f9;
+}
+
+.dark-theme .select2-dropdown {
+    background-color: #131f37;
+    border-color: #283a5c;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+}
+
+.dark-theme .select2-container--default .select2-search--dropdown {
+    background-color: #131f37;
+}
+
+.dark-theme .select2-container--default .select2-search--dropdown .select2-search__field {
+    background-color: #0b1326;
+    border-color: #283a5c;
+    color: #f1f5f9;
+}
+
+.dark-theme .select2-container--default .select2-results__option {
+    color: #e2e8f0;
+}
+
+.dark-theme .select2-container--default .select2-results__group {
+    color: #5eead4;
+    background: rgba(26, 188, 156, 0.14);
+}
+
+.dark-theme .select2-container--default .select2-results__option--selected,
+.dark-theme .select2-container--default .select2-results__option[aria-selected="true"] {
+    background-color: #1e2c4a;
+    color: #5eead4;
+}
+
+.dark-theme .header-search.header-search-select2 {
+    background-color: #0e172a;
+    border-color: #283a5c;
+}
+
+.s2-global-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.s2-global-item-title {
+    font-weight: 600;
+    line-height: 1.25;
+}
+.s2-global-item-sub {
+    font-size: 0.75rem;
+    opacity: 0.78;
+}
+
+@media (max-width: 768px) {
+    .header-search.header-search-select2 {
+        min-width: 170px;
+        max-width: 100%;
+    }
+}
+
+@media print {
+    .sidebar, .header, .no-print, .sidebar-overlay {
+        display: none !important;
+    }
+    .main-area, .content-wrapper, .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+    }
+    body {
+        background: #ffffff !important;
+        color: #111827 !important;
+    }
+}

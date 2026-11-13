@@ -2,6 +2,187 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("Main.js carregado com sucesso.");
 
     // ===================================================
+    // 0. MOTOR GLOBAL DE SELECT2 & PESQUISA NO CABEÇALHO
+    // ===================================================
+    const PetCrmSelect2 = (function() {
+        const hasJq = (typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.select2 === 'function');
+        const observedModals = new WeakSet();
+
+        function resolveEl(elOrSelector) {
+            if (!elOrSelector) return null;
+            if (typeof elOrSelector === 'string') return document.querySelector(elOrSelector);
+            return elOrSelector;
+        }
+
+        function getDropdownParent(el) {
+            const modalBodyOrContent = el.closest('.modal-content, .modal-box, .modal-overlay');
+            return modalBodyOrContent ? window.jQuery(modalBodyOrContent) : window.jQuery(document.body);
+        }
+
+        function bindObserver(selectEl) {
+            if (selectEl._petcrmS2Observed) return;
+            selectEl._petcrmS2Observed = true;
+            let timer = null;
+            const obs = new MutationObserver(() => {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    sync(selectEl);
+                }, 0);
+            });
+            obs.observe(selectEl, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+
+            const form = selectEl.closest('form');
+            if (form && !form._petcrmS2ResetBound) {
+                form._petcrmS2ResetBound = true;
+                form.addEventListener('reset', () => {
+                    setTimeout(() => {
+                        form.querySelectorAll('select').forEach(s => sync(s));
+                    }, 0);
+                });
+            }
+
+            const modalOverlay = selectEl.closest('.modal-overlay, .modal-box');
+            if (modalOverlay && !observedModals.has(modalOverlay)) {
+                observedModals.add(modalOverlay);
+                const modalObs = new MutationObserver(() => {
+                    if (modalOverlay.style.display && modalOverlay.style.display !== 'none') {
+                        setTimeout(() => {
+                            modalOverlay.querySelectorAll('select').forEach(s => sync(s));
+                        }, 10);
+                    }
+                });
+                modalObs.observe(modalOverlay, { attributes: true, attributeFilter: ['style', 'class'] });
+            }
+        }
+
+        function enhance(elOrSelector, customOpts = {}) {
+            if (!hasJq) return null;
+            const el = resolveEl(elOrSelector);
+            if (!el || el.tagName !== 'SELECT') return null;
+            if (el.dataset.noAutoSelect2 === '1' && !customOpts._force) return null;
+
+            const $ = window.jQuery;
+            const $el = $(el);
+
+            if ($el.hasClass('select2-hidden-accessible')) {
+                if (Object.keys(customOpts).length > 0 && !customOpts._skipReinit) {
+                    $el.select2('destroy');
+                } else {
+                    return $el;
+                }
+            }
+
+            const placeholderAttr = el.getAttribute('data-placeholder') || '';
+            const firstOpt = el.options && el.options.length > 0 ? el.options[0] : null;
+            const firstEmptyText = (!placeholderAttr && firstOpt && firstOpt.value === '') ? firstOpt.textContent.trim() : '';
+
+            const opts = Object.assign({
+                language: 'pt-BR',
+                width: el.dataset.s2Width || '100%',
+                dropdownParent: getDropdownParent(el),
+                placeholder: placeholderAttr || firstEmptyText || 'Pesquisar...',
+                allowClear: el.dataset.s2AllowClear === '1',
+                tags: el.dataset.s2Tags === '1',
+                minimumResultsForSearch: el.dataset.s2MinSearch !== undefined ? parseInt(el.dataset.s2MinSearch, 10) : 0,
+            }, customOpts);
+            delete opts._force;
+            delete opts._skipReinit;
+
+            $el.select2(opts);
+
+            if (!el._petcrmS2EventsBound) {
+                el._petcrmS2EventsBound = true;
+                $el.on('select2:select select2:clear select2:unselect', function() {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            }
+
+            bindObserver(el);
+            return $el;
+        }
+
+        function sync(elOrSelector, newVal = undefined) {
+            const el = resolveEl(elOrSelector);
+            if (!el) return;
+            if (newVal !== undefined) {
+                el.value = newVal === null ? '' : String(newVal);
+            }
+            if (!hasJq) return;
+            const $el = window.jQuery(el);
+            if ($el.hasClass('select2-hidden-accessible')) {
+                $el.prop('disabled', !!el.disabled);
+                $el.trigger('change.select2');
+            }
+        }
+
+        function initAll(root = document) {
+            if (!hasJq) return;
+            const selects = root.querySelectorAll('select');
+            selects.forEach(sel => {
+                if (sel.dataset.noAutoSelect2 === '1') return;
+                enhance(sel, { _skipReinit: true });
+            });
+        }
+
+        function initHeaderGlobalSearch() {
+            if (!hasJq) return;
+            const el = document.getElementById('header-global-search');
+            if (!el) return;
+            const $ = window.jQuery;
+            const $el = $(el);
+            if ($el.hasClass('select2-hidden-accessible')) return;
+
+            const iconesTipo = {
+                cliente: '<i class="fas fa-user" style="color:#1abc9c;margin-right:6px;"></i>',
+                pet: '<i class="fas fa-paw" style="color:#f59e0b;margin-right:6px;"></i>',
+                produto: '<i class="fas fa-box-open" style="color:#3b82f6;margin-right:6px;"></i>',
+                servico: '<i class="fas fa-cut" style="color:#a855f7;margin-right:6px;"></i>',
+                loja: '<i class="fas fa-store" style="color:#10b981;margin-right:6px;"></i>'
+            };
+
+            $el.select2({
+                language: 'pt-BR',
+                width: '100%',
+                placeholder: 'Buscar cliente, pet, produto ou serviço...',
+                allowClear: true,
+                minimumInputLength: 0,
+                ajax: {
+                    url: 'api_busca_global.php',
+                    dataType: 'json',
+                    delay: 220,
+                    data: params => ({ q: params.term || '', tipo: 'all' }),
+                    processResults: data => ({ results: data.results || [] }),
+                    cache: true
+                },
+                templateResult: function(item) {
+                    if (!item.id) return item.text;
+                    const ic = iconesTipo[item.tipo] || '';
+                    const $node = $('<div class="s2-global-item"></div>');
+                    $node.append($('<div class="s2-global-item-title"></div>').html(ic).append(document.createTextNode(item.text || '')));
+                    if (item.subtitulo) {
+                        $node.append($('<div class="s2-global-item-sub"></div>').text(item.subtitulo));
+                    }
+                    return $node;
+                }
+            });
+
+            $el.on('select2:select', function(e) {
+                const data = e.params && e.params.data;
+                if (data && data.url) {
+                    window.location.href = data.url;
+                }
+            });
+        }
+
+        return { enhance, sync, initAll, initHeaderGlobalSearch };
+    })();
+
+    window.PetCrmSelect2 = PetCrmSelect2;
+    PetCrmSelect2.initHeaderGlobalSearch();
+    PetCrmSelect2.initAll();
+
+    // ===================================================
     // 1. LÓGICA DO MODAL DA AGENDA (RETRABALHO COMPLETO ERP)
     // ===================================================
     const addAppointmentBtn = document.getElementById('add-appointment-btn');
@@ -115,7 +296,30 @@ document.addEventListener('DOMContentLoaded', function() {
         if (filtroProf) filtroProf.addEventListener('change', aplicarFiltrosAgenda);
         if (filtroServ) filtroServ.addEventListener('change', aplicarFiltrosAgenda);
         if (filtroStat) filtroStat.addEventListener('change', aplicarFiltrosAgenda);
-        if (filtroBusca) filtroBusca.addEventListener('input', aplicarFiltrosAgenda);
+        if (filtroBusca) {
+            if (filtroBusca.tagName === 'SELECT') {
+                const termosAgenda = new Set();
+                document.querySelectorAll('.modern-appointment-card, .appointment-card, .fila-card-item').forEach(el => {
+                    if (el.dataset.petNome) termosAgenda.add(el.dataset.petNome.trim());
+                    if (el.dataset.clienteNome) termosAgenda.add(el.dataset.clienteNome.trim());
+                });
+                Array.from(termosAgenda).sort().forEach(nome => {
+                    if (!nome) return;
+                    const opt = document.createElement('option');
+                    opt.value = nome;
+                    opt.textContent = nome;
+                    filtroBusca.appendChild(opt);
+                });
+                PetCrmSelect2.enhance(filtroBusca, {
+                    placeholder: 'Buscar pet ou tutor...',
+                    allowClear: true,
+                    tags: true
+                });
+                filtroBusca.addEventListener('change', aplicarFiltrosAgenda);
+            } else {
+                filtroBusca.addEventListener('input', aplicarFiltrosAgenda);
+            }
+        }
 
         // Carrega pets do cliente via API
         function carregarPets(clienteId, petIdSelecionado = null) {
@@ -148,15 +352,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (petIdSelecionado) {
                             petSelect.value = String(petIdSelecionado);
                         }
+                        PetCrmSelect2.sync(petSelect);
                     } else {
                         petSelect.innerHTML = '<option value="">Este cliente não possui pets cadastrados</option>';
                         petSelect.disabled = true;
+                        PetCrmSelect2.sync(petSelect);
                     }
                 })
                 .catch(err => {
                     console.error("Erro ao carregar pets:", err);
                     petSelect.innerHTML = '<option value="">Erro ao carregar pets</option>';
                     petSelect.disabled = true;
+                    PetCrmSelect2.sync(petSelect);
                 });
         }
 
@@ -187,6 +394,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 petSelect.innerHTML = '<option value="">Selecione um cliente primeiro</option>';
                 petSelect.disabled = true;
             }
+            [clientSelect, petSelect, serviceSelect, profSelect].forEach(s => PetCrmSelect2.sync(s));
 
             const hoje = new Date().toISOString().split('T')[0];
             if (dateInput) {
@@ -216,6 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             if (timeInput) timeInput.value = dados.time || '';
             if (profSelect) profSelect.value = dados.profissionalId || '0';
+            [clientSelect, serviceSelect, profSelect].forEach(s => PetCrmSelect2.sync(s));
             if (notesInput) notesInput.value = dados.obs || '';
 
             // Status Badge
@@ -612,6 +821,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             document.getElementById('product-descricao').value = p.descricao || '';
                             document.getElementById('product-quantidade').value = p.quantidade;
                             document.getElementById('product-unidade').value = p.unidade;
+                            PetCrmSelect2.sync('#product-unidade');
                             document.getElementById('product-chegada').value = p.data_chegada;
                             document.getElementById('product-vencimento').value = p.data_vencimento;
                             productModal.style.display = 'flex';
@@ -625,13 +835,22 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (productSearchInput) {
                 const tableRows = productTableBody.getElementsByTagName('tr');
-                productSearchInput.addEventListener('input', function() {
-                    const searchTerm = productSearchInput.value.toLowerCase();
+                const filtrarEstoqueTabela = function() {
+                    const searchTerm = (productSearchInput.value || '').toLowerCase().trim();
                     for (const row of tableRows) {
                         const rowText = row.textContent.toLowerCase();
-                        row.style.display = rowText.includes(searchTerm) ? "" : "none";
+                        row.style.display = (searchTerm === '' || rowText.includes(searchTerm)) ? "" : "none";
                     }
-                });
+                };
+                productSearchInput.addEventListener('input', filtrarEstoqueTabela);
+                productSearchInput.addEventListener('change', filtrarEstoqueTabela);
+                if (productSearchInput.tagName === 'SELECT') {
+                    PetCrmSelect2.enhance(productSearchInput, {
+                        placeholder: 'Buscar produto ou marca...',
+                        allowClear: true,
+                        tags: true
+                    });
+                }
             }
         }
     } 
@@ -711,6 +930,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 petsArray = [];
                 document.getElementById('pet-breed').innerHTML = '<option value="">Selecione a espécie primeiro</option>';
                 document.getElementById('pet-breed').disabled = true;
+                PetCrmSelect2.sync('#pet-species');
+                PetCrmSelect2.sync('#pet-breed');
                 clientModal.style.display = 'flex';
             });
 
@@ -740,6 +961,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     defaultOption.value = ""; defaultOption.textContent = "Selecione a espécie primeiro";
                     petBreedSelect.appendChild(defaultOption);
                 }
+                PetCrmSelect2.sync(petBreedSelect);
             });
 
             petForm.addEventListener('submit', function(event) {
@@ -757,6 +979,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 petSpeciesSelect.value = "";
                 petBreedSelect.innerHTML = '<option value="">Selecione a espécie primeiro</option>';
                 petBreedSelect.disabled = true;
+                PetCrmSelect2.sync(petSpeciesSelect);
+                PetCrmSelect2.sync(petBreedSelect);
             });
 
             petList.addEventListener('click', (e) => {
@@ -828,13 +1052,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('searchInput');
             if (searchInput) {
                 const tableRows = clientTableBody.getElementsByTagName('tr');
-                searchInput.addEventListener('input', function() {
-                    const searchTerm = searchInput.value.toLowerCase();
+                const filtrarClientesTabela = function() {
+                    const searchTerm = (searchInput.value || '').toLowerCase().trim();
                     for (const row of tableRows) {
                         const rowText = row.textContent.toLowerCase();
-                        row.style.display = rowText.includes(searchTerm) ? "" : "none";
+                        row.style.display = (searchTerm === '' || rowText.includes(searchTerm)) ? "" : "none";
                     }
-                });
+                };
+                searchInput.addEventListener('input', filtrarClientesTabela);
+                searchInput.addEventListener('change', filtrarClientesTabela);
+                if (searchInput.tagName === 'SELECT') {
+                    PetCrmSelect2.enhance(searchInput, {
+                        placeholder: 'Buscar cliente, telefone ou e-mail...',
+                        allowClear: true,
+                        tags: true
+                    });
+                }
             }
 
             clientTableBody.addEventListener('click', function(event) {
@@ -930,6 +1163,80 @@ document.addEventListener('DOMContentLoaded', function() {
         const btnPrintA4 = document.getElementById('btn-print-a4');
 
         // --- FUNÇÕES AUXILIARES DO CARRINHO ---
+        let crmPreviewTimer = null;
+        function renderizarResumoCrmBox(boxEl, data) {
+            if (!boxEl || !data || !data.success) return;
+            const linhas = [];
+            if (data.promocoes && data.promocoes.aplicaveis) {
+                data.promocoes.aplicaveis.forEach(pr => {
+                    linhas.push(`<div style="color:#047857;">🏷️ <strong>${pr.titulo}</strong>: -R$ ${parseFloat(pr.desconto_valor || 0).toFixed(2).replace('.', ',')} (${pr.desconto_percentual}%)</div>`);
+                });
+            }
+            if (data.regras_modulares) {
+                data.regras_modulares.forEach(r => {
+                    const descTxt = r.desconto_aplicado > 0 ? `(-R$ ${parseFloat(r.desconto_aplicado).toFixed(2).replace('.', ',')})` : '';
+                    const cbTxt = r.cashback_gerado > 0 ? `(+R$ ${parseFloat(r.cashback_gerado).toFixed(2).replace('.', ',')} cashback)` : '';
+                    const ptsTxt = r.pontos_gerados > 0 ? `(+${r.pontos_gerados} pts)` : '';
+                    const progTxt = r.meta > 0 ? `${r.progresso_depois}/${r.meta}` : '';
+                    linhas.push(`<div style="color:#0f766e;">⭐ <strong>${r.nome_regra}</strong>: ${r.status_label} ${progTxt} ${descTxt}${cbTxt}${ptsTxt}</div>`);
+                });
+            }
+            if (data.promocoes && data.promocoes.bloqueadas) {
+                data.promocoes.bloqueadas.forEach(b => {
+                    linhas.push(`<div style="color:#dc2626;">⛔ <strong>${b.titulo}</strong>: ${b.motivo}</div>`);
+                });
+            }
+            if (data.promocoes && data.promocoes.pendentes_identificacao) {
+                data.promocoes.pendentes_identificacao.forEach(p => {
+                    linhas.push(`<div style="color:#d97706;">🪪 <strong>${p.titulo}</strong>: ${p.motivo}</div>`);
+                });
+            }
+            if (data.regras_bloqueadas) {
+                data.regras_bloqueadas.forEach(rb => {
+                    linhas.push(`<div style="color:#b91c1c;">⛔ <strong>${rb.nome_regra}</strong>: ${rb.motivo}</div>`);
+                });
+            }
+
+            if (linhas.length === 0) {
+                boxEl.style.display = 'none';
+                boxEl.innerHTML = '';
+                return;
+            }
+            const descTotalCrm = (parseFloat(data.desconto_promocao || 0) + parseFloat(data.desconto_fidelidade || 0));
+            if (descTotalCrm > 0) {
+                linhas.push(`<div style="margin-top:4px;padding-top:4px;border-top:1px dashed #99f6e4;font-weight:700;color:#065f46;">Total Estimado c/ Descontos CRM: R$ ${parseFloat(data.total_liquido || 0).toFixed(2).replace('.', ',')}</div>`);
+            }
+            boxEl.innerHTML = linhas.join('');
+            boxEl.style.display = 'block';
+        }
+
+        function agendarPreviewCrm() {
+            const previewBox = document.getElementById('pdv-crm-live-preview');
+            if (!previewBox) return;
+            if (carrinho.length === 0) {
+                previewBox.style.display = 'none';
+                previewBox.innerHTML = '';
+                return;
+            }
+            clearTimeout(crmPreviewTimer);
+            crmPreviewTimer = setTimeout(() => {
+                const cliId = pdvClienteSelect ? (pdvClienteSelect.value || null) : null;
+                const descManual = parseFloat(descontoInput.value.replace(',', '.')) || 0;
+                fetch('api_fidelidade.php?acao=verificar_regras_carrinho', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        itens: carrinho,
+                        cliente_id: cliId,
+                        desconto_manual: descManual
+                    })
+                })
+                .then(r => r.json())
+                .then(data => renderizarResumoCrmBox(previewBox, data))
+                .catch(() => {});
+            }, 180);
+        }
+
         function atualizarInterface() {
             carrinhoLista.innerHTML = '';
             let subtotal = 0;
@@ -951,26 +1258,61 @@ document.addEventListener('DOMContentLoaded', function() {
             totalGlobal = subtotal - desconto;
             if(totalGlobal < 0) totalGlobal = 0;
             totalVendaEl.textContent = 'R$ ' + totalGlobal.toFixed(2);
+            agendarPreviewCrm();
         }
 
-        function adicionarItem(id, nome, preco) {
-            const existente = carrinho.find(i => i.id == id);
+        function adicionarItem(id, nome, preco, tipo = 'produto') {
+            const idInt = parseInt(id);
+            const existente = carrinho.find(i => i.id == idInt && (i.tipo || 'produto') === tipo);
             if (existente) {
                 existente.qtd++;
             } else {
-                carrinho.push({ id: parseInt(id), nome: nome, preco: parseFloat(preco), qtd: 1 });
+                const obj = { id: idInt, tipo: tipo, nome: nome, preco: parseFloat(preco), qtd: 1 };
+                if (tipo === 'servico' && idInt > 0) {
+                    obj.servico_id = idInt;
+                }
+                carrinho.push(obj);
             }
             atualizarInterface();
         }
 
         // --- EXPORTAÇÃO PARA O HTML (ONCLICK) ---
-        window.adicionarAoCarrinho = function(id, nome, preco) { adicionarItem(id, nome, preco); };
-        window.adicionarServicoAvulso = function(nome, preco) { const idTemp = -Date.now(); adicionarItem(idTemp, nome, preco); };
+        window.adicionarAoCarrinho = function(id, nome, preco) { adicionarItem(id, nome, preco, 'produto'); };
+        window.adicionarServicoCatalogo = function(id, nome, preco) { adicionarItem(id, nome, preco, 'servico'); };
+        window.adicionarServicoAvulso = function(nome, preco) { const idTemp = -Date.now(); adicionarItem(idTemp, nome, preco, 'servico'); };
         window.removerItem = function(index) { carrinho.splice(index, 1); atualizarInterface(); };
 
         // --- EVENTOS DE VENDAS ---
 
-        // Busca por ENTER
+        // Busca Select2 AJAX (Produtos & Serviços do Catálogo) no PDV
+        const pdvSearchSelect2 = document.getElementById('pdv-search-select2');
+        if (pdvSearchSelect2 && typeof window.jQuery !== 'undefined' && typeof window.jQuery.fn.select2 === 'function') {
+            const $pdvS2 = window.jQuery(pdvSearchSelect2);
+            $pdvS2.select2({
+                language: 'pt-BR',
+                width: '100%',
+                placeholder: 'Pesquisar produto ou serviço para adicionar...',
+                allowClear: true,
+                minimumInputLength: 0,
+                ajax: {
+                    url: 'buscar_produto_pdv.php',
+                    dataType: 'json',
+                    delay: 180,
+                    data: params => ({ select2: 1, q: params.term || '' }),
+                    processResults: data => ({ results: data.results || [] }),
+                    cache: true
+                }
+            });
+            $pdvS2.on('select2:select', function(e) {
+                const item = e.params && e.params.data;
+                if (item && item.raw_id) {
+                    adicionarItem(item.raw_id, item.nome, item.preco, item.tipo || 'produto');
+                }
+                $pdvS2.val(null).trigger('change.select2');
+            });
+        }
+
+        // Busca por ENTER (leitor de código de barras físico)
         pdvSearchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 const termo = this.value;
@@ -1046,12 +1388,38 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Atualiza WhatsApp automaticamente quando o operador troca o cliente no select
-        if (pdvClienteSelect && pdvFidWhatsapp) {
+        // Atualiza WhatsApp e preview CRM automaticamente quando o operador troca o cliente no select
+        if (pdvClienteSelect) {
             pdvClienteSelect.addEventListener('change', function() {
                 const opt = this.selectedOptions[0];
-                if (opt && opt.dataset.telefone) {
+                if (pdvFidWhatsapp && opt && opt.dataset.telefone) {
                     pdvFidWhatsapp.value = opt.dataset.telefone;
+                }
+                agendarPreviewCrm();
+            });
+        }
+
+        if (pdvFidWhatsapp) {
+            pdvFidWhatsapp.addEventListener('blur', function() {
+                if (modalFidelidadePdv && modalFidelidadePdv.style.display === 'flex' && carrinho.length > 0) {
+                    const cliId = pdvClienteSelect.value || null;
+                    const descManual = parseFloat(descontoInput.value.replace(',', '.')) || 0;
+                    fetch('api_fidelidade.php?acao=verificar_regras_carrinho', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            itens: carrinho,
+                            cliente_id: cliId,
+                            cliente_whatsapp: this.value.trim(),
+                            desconto_manual: descManual
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        const listaModal = document.getElementById('pdv-fid-lista-beneficios');
+                        renderizarResumoCrmBox(listaModal, data);
+                    })
+                    .catch(() => {});
                 }
             });
         }
@@ -1087,21 +1455,38 @@ document.addEventListener('DOMContentLoaded', function() {
                     descontoInput.value = "0.00";
                     atualizarInterface();
 
+                    const valorPagoReal = (res.valor_total_pago !== undefined) ? parseFloat(res.valor_total_pago) : totalVendaFinal;
+                    const descTotalReal = parseFloat(res.desconto_total || 0);
+                    const descInfoEl = document.getElementById('sucesso-desconto-info');
+                    if (descInfoEl) {
+                        if (descTotalReal > 0) {
+                            descInfoEl.innerHTML = `🏷️ Descontos aplicados: <strong>-R$ ${descTotalReal.toFixed(2).replace('.', ',')}</strong> (Promoções: R$ ${parseFloat(res.desconto_promocao || 0).toFixed(2).replace('.', ',')} | Regras: R$ ${parseFloat(res.desconto_fidelidade || 0).toFixed(2).replace('.', ',')})`;
+                            descInfoEl.style.display = 'block';
+                        } else {
+                            descInfoEl.style.display = 'none';
+                        }
+                    }
+
                     // Se participou de fidelidade e gerou dados de WhatsApp
                     if (res.fidelidade && res.fidelidade.participou) {
                         const fid = res.fidelidade;
                         document.getElementById('sucesso-venda-num').textContent = res.venda_id;
-                        document.getElementById('sucesso-venda-total').textContent = 'R$ ' + totalVendaFinal.toFixed(2);
+                        document.getElementById('sucesso-venda-total').textContent = 'R$ ' + valorPagoReal.toFixed(2).replace('.', ',');
                         document.getElementById('sucesso-cli-nome').textContent = fid.cliente_nome;
-                        document.getElementById('sucesso-cli-progresso').textContent = fid.selos_atuais + ' de ' + fid.meta_selos + ' selos';
+
+                        let extraProg = '';
+                        if (fid.regras_processadas && fid.regras_processadas.length > 0) {
+                            extraProg = ' | ' + fid.regras_processadas.map(r => `${r.nome_regra}: ${r.progresso_depois}/${r.meta || '-'} (${r.status_label})`).join('; ');
+                        }
+                        document.getElementById('sucesso-cli-progresso').textContent = fid.selos_atuais + ' de ' + fid.meta_selos + ' selos' + extraProg;
                         
                         const badgeSelos = document.getElementById('sucesso-badge-selos');
                         if (fid.recompensa_desbloqueada) {
-                            badgeSelos.textContent = '🎉 DESCONTO LIBERADO!';
+                            badgeSelos.textContent = '🎉 RECOMPENSA LIBERADA!';
                             badgeSelos.style.background = '#dcfce7';
                             badgeSelos.style.color = '#15803d';
                         } else {
-                            badgeSelos.textContent = '+1 Selo Acumulado';
+                            badgeSelos.textContent = '✓ CRM Atualizado';
                             badgeSelos.style.background = '#fef3c7';
                             badgeSelos.style.color = '#b45309';
                         }
@@ -1130,7 +1515,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         // Venda comum sem fidelidade
                         document.getElementById('sucesso-venda-num').textContent = res.venda_id;
-                        document.getElementById('sucesso-venda-total').textContent = 'R$ ' + totalVendaFinal.toFixed(2);
+                        document.getElementById('sucesso-venda-total').textContent = 'R$ ' + valorPagoReal.toFixed(2).replace('.', ',');
                         document.getElementById('sucesso-box-fidelidade').style.display = 'none';
                         document.getElementById('sucesso-box-whatsapp').style.display = 'none';
                         document.getElementById('btn-ver-cartao-sucesso').style.display = 'none';
@@ -1138,6 +1523,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     pdvClienteSelect.value = "";
+                    PetCrmSelect2.sync(pdvClienteSelect);
                 } else {
                     alert('Erro ao finalizar venda: ' + res.message);
                 }
@@ -1158,6 +1544,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const opt = pdvClienteSelect.selectedOptions[0];
             const clienteId = pdvClienteSelect.value || null;
+            const descManual = parseFloat(descontoInput.value.replace(',', '.')) || 0;
 
             // Pré-preenche WhatsApp se o cliente já tiver cadastrado
             if (pdvFidWhatsapp) {
@@ -1173,33 +1560,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            // Verifica se o carrinho é elegível para fidelidade
+            // Verifica se o carrinho é elegível para fidelidade e promoções
             fetch('api_fidelidade.php?acao=verificar_regras_carrinho', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     itens: carrinho,
                     cliente_id: clienteId,
-                    total_venda: totalGlobal
+                    desconto_manual: descManual
                 })
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success && data.elegivel && data.regras && data.regras.length > 0 && modalFidelidadePdv) {
-                    // Mostra o modal na tela do operador de caixa!
-                    const regra = data.regras[0];
+                if (data.success && data.elegivel && modalFidelidadePdv) {
+                    const regra = (data.regras && data.regras.length > 0) ? data.regras[0] : null;
+                    const promo = (data.promocoes && data.promocoes.aplicaveis && data.promocoes.aplicaveis.length > 0) ? data.promocoes.aplicaveis[0] : null;
                     const nomeRegraEl = document.getElementById('pdv-fid-nome-regra');
                     const beneficioEl = document.getElementById('pdv-fid-beneficio');
                     const badgeMetaEl = document.getElementById('pdv-fid-badge-meta');
                     const bannerEl = document.getElementById('pdv-fid-banner');
+                    const listaModalEl = document.getElementById('pdv-fid-lista-beneficios');
 
-                    if (nomeRegraEl) nomeRegraEl.textContent = regra.nome_regra || 'Cartão Fidelidade Pet VIP';
-                    if (beneficioEl) beneficioEl.textContent = regra.beneficio ? ('Acumule selos e ganhe: ' + regra.beneficio) : 'Ganhe selos especiais nesta compra!';
-                    if (badgeMetaEl) badgeMetaEl.textContent = '+' + (regra.meta ? ('1 de ' + regra.meta + ' selos') : '1 Selo VIP');
-                    if (bannerEl && regra.cor_hex) {
-                        bannerEl.style.background = `linear-gradient(135deg, ${regra.cor_hex}, ${regra.cor_secundaria || '#2c3e50'})`;
+                    if (regra) {
+                        if (nomeRegraEl) nomeRegraEl.textContent = regra.nome_regra || 'Cartão Fidelidade Pet VIP';
+                        if (beneficioEl) beneficioEl.textContent = regra.beneficio ? ('Benefício: ' + regra.beneficio + ' (' + (regra.status_label || '') + ')') : 'Ganhe selos especiais nesta compra!';
+                        if (badgeMetaEl) badgeMetaEl.textContent = regra.meta > 0 ? (`${regra.progresso_depois || 1} de ${regra.meta}`) : (regra.status_label || 'Regra Ativa');
+                        if (bannerEl && regra.cor_hex) {
+                            bannerEl.style.background = `linear-gradient(135deg, ${regra.cor_hex}, ${regra.cor_secundaria || '#2c3e50'})`;
+                        }
+                    } else if (promo) {
+                        if (nomeRegraEl) nomeRegraEl.textContent = promo.titulo;
+                        if (beneficioEl) beneficioEl.textContent = `Desconto de ${promo.desconto_percentual}% aplicado automaticamente no PDV!`;
+                        if (badgeMetaEl) badgeMetaEl.textContent = `-R$ ${parseFloat(promo.desconto_valor || 0).toFixed(2).replace('.', ',')}`;
+                    } else {
+                        if (nomeRegraEl) nomeRegraEl.textContent = 'Política de Promoções / CRM';
+                        if (beneficioEl) beneficioEl.textContent = 'Veja abaixo os detalhes e bloqueios de reentrada para este cliente.';
+                        if (badgeMetaEl) badgeMetaEl.textContent = 'Verificação CRM';
                     }
 
+                    renderizarResumoCrmBox(listaModalEl, data);
                     modalFidelidadePdv.style.display = 'flex';
                 } else {
                     // Não tem regra ativa aplicável, finaliza direto

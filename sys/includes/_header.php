@@ -3,10 +3,12 @@
         <button type="button" id="sidebar-toggle-btn" class="mobile-menu-btn" aria-label="Abrir Menu">
             <i class="fas fa-bars"></i>
         </button>
-        <div class="header-search">
-        <i class="fas fa-search"></i>
-        <input type="text" placeholder="Buscar por cliente, pet...">
-    </div>
+        <div class="header-search header-search-select2">
+            <i class="fas fa-search"></i>
+            <select id="header-global-search" data-no-auto-select2="1" aria-label="Buscar por cliente, pet, produto ou serviço" style="width:100%;">
+                <option value=""></option>
+            </select>
+        </div>
     </div>
     <div class="header-profile">
         <?php
@@ -17,9 +19,9 @@
         ?>
             <form method="post" action="trocar_unidade.php" id="form-trocar-unidade" style="margin:0;">
                 <input type="hidden" name="voltar" value="<?php echo htmlspecialchars(basename($_SERVER['PHP_SELF'])); ?>">
-                <label for="select-unidade" style="display:flex;align-items:center;gap:8px;background:#f0faf7;border:1px solid #1abc9c;border-radius:20px;padding:4px 12px;color:#16a085;font-size:0.85rem;font-weight:600;cursor:pointer;">
+                <div class="unit-pill-wrap" style="display:flex;align-items:center;gap:8px;background:#f0faf7;border:1px solid #1abc9c;border-radius:20px;padding:4px 12px;color:#16a085;font-size:0.85rem;font-weight:600;">
                     <i class="fas fa-store"></i>
-                    <select name="unidade_id" id="select-unidade" onchange="this.form.submit()"
+                    <select name="unidade_id" id="select-unidade" class="select2-compact-pill" onchange="this.form.submit()"
                             style="border:none;background:transparent;color:#16a085;font-weight:600;font-size:0.85rem;outline:none;cursor:pointer;max-width:240px;">
                         <?php foreach ($unidadesHeader as $uid => $rotulo): ?>
                             <option value="<?php echo (int)$uid; ?>" <?php echo ((int)$uid === $unidadeAtivaHeader) ? 'selected' : ''; ?>>
@@ -27,7 +29,7 @@
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </label>
+                </div>
             </form>
         <?php endif; ?>
         <!-- Botão Único com Design Refinado para Alternar Tema Claro / Escuro -->

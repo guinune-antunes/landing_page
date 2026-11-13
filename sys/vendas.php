@@ -43,6 +43,11 @@ $sql_rapidos = "SELECT * FROM produtos WHERE instituicao_id = ? AND quantidade_e
 $stmt_rapidos = $pdo->prepare($sql_rapidos);
 $stmt_rapidos->execute([$id_loja]);
 $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
+
+// Busca Serviços do Catálogo da Loja (para vinculação real com regras modulares e venda_itens.servico_id)
+$stServPdv = $pdo->prepare("SELECT id, nome_servico, preco_padrao FROM servicos WHERE instituicao_id = ? ORDER BY nome_servico ASC");
+$stServPdv->execute([$id_loja]);
+$servicosCatalogo = $stServPdv->fetchAll(PDO::FETCH_ASSOC);
 // =========================================================================
 ?>
 
@@ -59,59 +64,80 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
                 <div class="pdv-left-panel">
                     
                     <div class="product-search-area">
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label><i class="fas fa-barcode"></i> Buscar Produto (Nome ou Código)</label>
-                            <input type="text" id="pdv-search" class="form-control" placeholder="Digite ou bipe o código..." autofocus autocomplete="off">
+                        <div style="display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; align-items: end;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label><i class="fas fa-search"></i> Pesquisar Produto / Serviço (Select2)</label>
+                                <select id="pdv-search-select2" data-no-auto-select2="1" style="width: 100%;"></select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label><i class="fas fa-barcode"></i> Leitor Código / Enter</label>
+                                <input type="text" id="pdv-search" class="form-control" placeholder="Bipe o código + Enter..." autofocus autocomplete="off">
+                            </div>
                         </div>
                     </div>
 
                     <h4 style="margin-bottom: 5px; color: #555; padding-left: 5px;">Serviços & Produtos Rápidos</h4>
                     
                     <div class="services-container">
-                        
-                        <div class="service-list-item" onclick="adicionarServicoAvulso('Banho - Pequeno', 50.00)">
-                            <div class="service-info">
-                                <div class="service-icon"><i class="fas fa-bath"></i></div>
-                                <div class="service-details">
-                                    <h4>Banho (Pequeno Porte)</h4>
-                                    <small>Serviço Avulso</small>
-                                </div>
-                            </div>
-                            <div class="service-price">R$ 50,00</div>
-                        </div>
 
-                        <div class="service-list-item" onclick="adicionarServicoAvulso('Banho - Grande', 80.00)">
-                            <div class="service-info">
-                                <div class="service-icon"><i class="fas fa-shower"></i></div>
-                                <div class="service-details">
-                                    <h4>Banho (Grande Porte)</h4>
-                                    <small>Serviço Avulso</small>
+                        <?php if (!empty($servicosCatalogo)): ?>
+                            <?php foreach ($servicosCatalogo as $sv): ?>
+                                <div class="service-list-item" onclick="adicionarServicoCatalogo(<?php echo (int)$sv['id']; ?>, '<?php echo addslashes($sv['nome_servico']); ?>', <?php echo (float)$sv['preco_padrao']; ?>)">
+                                    <div class="service-info">
+                                        <div class="service-icon"><i class="fas fa-cut"></i></div>
+                                        <div class="service-details">
+                                            <h4><?php echo htmlspecialchars($sv['nome_servico']); ?></h4>
+                                            <small>Serviço do Catálogo #<?php echo (int)$sv['id']; ?></small>
+                                        </div>
+                                    </div>
+                                    <div class="service-price">R$ <?php echo number_format($sv['preco_padrao'], 2, ',', '.'); ?></div>
                                 </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="service-list-item" onclick="adicionarServicoAvulso('Banho - Pequeno', 50.00)">
+                                <div class="service-info">
+                                    <div class="service-icon"><i class="fas fa-bath"></i></div>
+                                    <div class="service-details">
+                                        <h4>Banho (Pequeno Porte)</h4>
+                                        <small>Serviço Avulso</small>
+                                    </div>
+                                </div>
+                                <div class="service-price">R$ 50,00</div>
                             </div>
-                            <div class="service-price">R$ 80,00</div>
-                        </div>
 
-                        <div class="service-list-item" onclick="adicionarServicoAvulso('Tosa Higiênica', 40.00)">
-                            <div class="service-info">
-                                <div class="service-icon"><i class="fas fa-cut"></i></div>
-                                <div class="service-details">
-                                    <h4>Tosa Higiênica</h4>
-                                    <small>Serviço Avulso</small>
+                            <div class="service-list-item" onclick="adicionarServicoAvulso('Banho - Grande', 80.00)">
+                                <div class="service-info">
+                                    <div class="service-icon"><i class="fas fa-shower"></i></div>
+                                    <div class="service-details">
+                                        <h4>Banho (Grande Porte)</h4>
+                                        <small>Serviço Avulso</small>
+                                    </div>
                                 </div>
+                                <div class="service-price">R$ 80,00</div>
                             </div>
-                            <div class="service-price">R$ 40,00</div>
-                        </div>
 
-                        <div class="service-list-item" onclick="adicionarServicoAvulso('Consulta Veterinária', 120.00)">
-                            <div class="service-info">
-                                <div class="service-icon" style="background:#ffebee; color:#e74c3c;"><i class="fas fa-user-md"></i></div>
-                                <div class="service-details">
-                                    <h4>Consulta Veterinária</h4>
-                                    <small>Clínica</small>
+                            <div class="service-list-item" onclick="adicionarServicoAvulso('Tosa Higiênica', 40.00)">
+                                <div class="service-info">
+                                    <div class="service-icon"><i class="fas fa-cut"></i></div>
+                                    <div class="service-details">
+                                        <h4>Tosa Higiênica</h4>
+                                        <small>Serviço Avulso</small>
+                                    </div>
                                 </div>
+                                <div class="service-price">R$ 40,00</div>
                             </div>
-                            <div class="service-price">R$ 120,00</div>
-                        </div>
+
+                            <div class="service-list-item" onclick="adicionarServicoAvulso('Consulta Veterinária', 120.00)">
+                                <div class="service-info">
+                                    <div class="service-icon" style="background:#ffebee; color:#e74c3c;"><i class="fas fa-user-md"></i></div>
+                                    <div class="service-details">
+                                        <h4>Consulta Veterinária</h4>
+                                        <small>Clínica</small>
+                                    </div>
+                                </div>
+                                <div class="service-price">R$ 120,00</div>
+                            </div>
+                        <?php endif; ?>
 
                         <hr style="border: 0; border-top: 1px dashed #ddd; margin: 10px 0;">
 
@@ -140,7 +166,7 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
                             </button>
                         </div>
                         <div class="client-selector">
-                            <select id="pdv-cliente">
+                            <select id="pdv-cliente" data-s2-allow-clear="1" data-placeholder="Cliente Balcão (Anônimo)">
                                 <option value="" data-telefone="" data-nome="">Cliente Balcão (Anônimo)</option>
                                 <?php foreach ($clientes as $c): ?>
                                     <option value="<?php echo $c['id']; ?>" <?php echo ($cliente_selecionado == $c['id']) ? 'selected' : ''; ?> data-telefone="<?php echo htmlspecialchars($c['telefone'] ?? ''); ?>" data-nome="<?php echo htmlspecialchars($c['nome_completo']); ?>">
@@ -166,6 +192,7 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
                     </div>
 
                     <div class="ticket-footer">
+                        <div id="pdv-crm-live-preview" style="display: none; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; font-size: 0.78rem; color: #0f766e;"></div>
                         <div class="total-display">
                             <span class="total-label">TOTAL</span>
                             <span class="total-value" id="total-venda">R$ 0,00</span>
@@ -244,7 +271,7 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <!-- Banner com a regra/promoção elegível -->
-        <div id="pdv-fid-banner" style="background: linear-gradient(135deg, #0d9488, #115e59); color: white; border-radius: 14px; padding: 16px; margin-bottom: 20px; box-shadow: 0 8px 18px rgba(13, 148, 136, 0.25);">
+        <div id="pdv-fid-banner" style="background: linear-gradient(135deg, #0d9488, #115e59); color: white; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 8px 18px rgba(13, 148, 136, 0.25);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                 <span style="background: rgba(255,255,255,0.22); font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">
                     <i class="fas fa-tag"></i> Promoção Ativa
@@ -253,9 +280,12 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
             </div>
             <h4 id="pdv-fid-nome-regra" style="margin: 0 0 4px 0; font-size: 1.05rem; font-weight: 700;">Cartão Fidelidade Pet VIP</h4>
             <p id="pdv-fid-beneficio" style="margin: 0; font-size: 0.88rem; opacity: 0.92; line-height: 1.3;">
-                Acumule selos e ganhe 15% de desconto especial na conclusão do cartão!
+                Acumule selos e ganhe benefícios no clube VIP!
             </p>
         </div>
+
+        <!-- Resumo em tempo real de todas regras, promoções, descontos aplicados e bloqueios -->
+        <div id="pdv-fid-lista-beneficios" style="margin-bottom: 14px; display: none; font-size: 0.82rem;"></div>
 
         <p style="font-size: 1rem; color: #1e293b; font-weight: 600; margin-bottom: 14px;">
             Deseja pontuar o cliente no Cartão Fidelidade nesta compra?
@@ -302,9 +332,10 @@ $produtosRapidos = $stmt_rapidos->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <h2 style="font-size: 1.4rem; color: #0f172a; margin-bottom: 4px; font-weight: 800;">Venda Concluída!</h2>
-        <p style="color: #64748b; font-size: 0.92rem; margin-bottom: 18px;">
+        <p style="color: #64748b; font-size: 0.92rem; margin-bottom: 10px;">
             Venda #<strong id="sucesso-venda-num">0</strong> finalizada no valor de <strong id="sucesso-venda-total" style="color: #0f172a;">R$ 0,00</strong>.
         </p>
+        <div id="sucesso-desconto-info" style="display: none; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 10px; padding: 8px 12px; font-size: 0.82rem; font-weight: 600; margin-bottom: 14px;"></div>
 
         <!-- Box de Fidelidade (se o cliente participou) -->
         <div id="sucesso-box-fidelidade" style="background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 14px; padding: 14px; margin-bottom: 20px; text-align: left;">

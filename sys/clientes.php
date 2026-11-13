@@ -49,8 +49,18 @@ $clientes = $stmt_clientes->fetchAll();
                 <div class="page-controls">
                     <div class="search-container">
                         <i class="fas fa-search"></i>
-                        <input type="text" id="searchInput" placeholder="Buscar cliente...">
+                        <select id="searchInput" data-placeholder="Buscar cliente, telefone ou e-mail..." data-s2-allow-clear="1" data-s2-tags="1" style="width: 280px;">
+                            <option value=""></option>
+                            <?php foreach ($clientes as $cBusca): ?>
+                                <option value="<?php echo htmlspecialchars($cBusca['nome_completo']); ?>">
+                                    <?php echo htmlspecialchars($cBusca['nome_completo'] . (!empty($cBusca['telefone']) ? ' · ' . $cBusca['telefone'] : '')); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
+                    <a href="relatorio_crm.php" class="btn btn-secondary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+                        <i class="fas fa-address-card"></i> Relatório CRM
+                    </a>
                     <button class="btn btn-primary" id="add-client-btn">
                         <i class="fas fa-plus"></i> Adicionar Cliente
                     </button>
@@ -86,6 +96,9 @@ $clientes = $stmt_clientes->fetchAll();
                                     <td><?php echo htmlspecialchars($cliente['email']); ?></td>
                                     <td>
                                         <div class="action-buttons">
+                                            <a href="relatorio_crm.php?cliente_id=<?php echo (int)$cliente['id']; ?>" class="btn-icon" style="color:#0284c7;text-decoration:none;" title="Relatório CRM 360° & Histórico">
+                                                <i class="fas fa-chart-pie"></i>
+                                            </a>
                                             <button class="btn-icon btn-edit" data-id="<?php echo $cliente['id']; ?>" title="Editar">
                                                 <i class="fas fa-pencil-alt"></i>
                                             </button>
