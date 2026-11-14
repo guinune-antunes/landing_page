@@ -395,13 +395,38 @@ try {
         substr($resFidS2['body'], 0, 250)
     );
 
-    // 7. Testar relatorio_crm.php Panorama
+    // 7. Testar relatorio_crm.php Panorama (gráficos Promo Ativa × Venda Geral + 1ª Compra & Cadastros)
     $resPan = httpReq($baseUrl, 'relatorio_crm.php', 'GET', null, $cookies);
     $errPan = hasPhpRuntimeError($resPan['body']);
+    $checksPan = [
+        strpos($resPan['body'], "Ana Maria Select2 {$suf}") !== false,
+        strpos($resPan['body'], 'id="relatorio-crm-cliente-select"') !== false,
+        strpos($resPan['body'], 'id="chartPromosVsVendas"') !== false,
+        strpos($resPan['body'], 'id="chartSerieCrmVendas"') !== false,
+        strpos($resPan['body'], "Relâmpago Select2 {$suf}") !== false,
+        strpos($resPan['body'], 'Novo Cadastro + 1ª Compra') !== false,
+        strpos($resPan['body'], "Bruno Sem Compras {$suf}") !== false,
+        strpos($resPan['body'], 'Aguardando 1ª Compra') !== false,
+    ];
     ok(
-        $resPan['status'] === 200 && $errPan === '' && strpos($resPan['body'], "Ana Maria Select2 {$suf}") !== false && strpos($resPan['body'], 'id="relatorio-crm-cliente-select"') !== false,
-        'relatorio_crm.php Panorama renderiza HTTP 200, ranking e Select2 sem erros PHP',
-        $errPan !== '' ? "PHP Error: {$errPan}" : ('status=' . $resPan['status'])
+        $resPan['status'] === 200 && $errPan === '' && !in_array(false, $checksPan, true),
+        'relatorio_crm.php Panorama renderiza HTTP 200, gráficos Promo × Venda Geral, 1ª compra/cadastros e Select2',
+        $errPan !== '' ? "PHP Error: {$errPan}" : ('checks=' . json_encode($checksPan))
+    );
+    $jsPan = validateInlineScriptsWithNode($resPan['body'], 'relatorio_crm.php (Panorama)');
+    ok(
+        empty($jsPan['errors']),
+        "Inline <script> em relatorio_crm.php Panorama ({$jsPan['count']} blocos) passa node --check",
+        implode(' ; ', $jsPan['errors'])
+    );
+
+    $hoje = date('Y-m-d');
+    $resPanFilt = httpReq($baseUrl, "relatorio_crm.php?data_inicio={$hoje}&data_fim={$hoje}", 'GET', null, $cookies);
+    $errPanFilt = hasPhpRuntimeError($resPanFilt['body']);
+    ok(
+        $resPanFilt['status'] === 200 && $errPanFilt === '' && strpos($resPanFilt['body'], 'Filtro personalizado aplicado') !== false,
+        'relatorio_crm.php Panorama aceita filtro personalizado de período',
+        $errPanFilt
     );
 
     // 8. Testar relatorio_crm.php Dossiê 360°

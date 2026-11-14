@@ -4,6 +4,7 @@ require_once 'conexao.php';
 require_once __DIR__ . '/includes/unidades.php';
 require_once __DIR__ . '/includes/motor_fidelidade.php';
 require_once __DIR__ . '/includes/motor_nutricional.php';
+require_once __DIR__ . '/includes/relatorio_crm_panorama.php';
 
 $cargo = $_SESSION['usuario_cargo'] ?? '';
 if ($cargo === 'Admin') {
@@ -373,6 +374,8 @@ if ($cliente_id > 0) {
 // Visão Geral da Loja (quando nenhum cliente específico selecionado ou abaixo para troca rápida)
 $panoramaKpis = ['clientes_ativos' => 0, 'selos_totais' => 0, 'ciclos_totais' => 0, 'cashback_circulante' => 0.0, 'promos_usadas_total' => 0, 'regras_prontas' => 0];
 $rankingClientes = [];
+$panoramaPeriodo = crmPanoramaResolverPeriodo($data_inicio, $data_fim);
+$panoramaDetalhes = null;
 if ($cliente_id <= 0 || !$cliente) {
     $stPan = $pdo->prepare("SELECT COUNT(*) AS cli_ativos,
                                    COALESCE(SUM(selos_atuais), 0) AS selos_totais,
@@ -429,6 +432,8 @@ if ($cliente_id <= 0 || !$cliente) {
                              LIMIT 40");
     $stRank->execute([$id_loja_fid, $id_loja_fid, $id_loja]);
     $rankingClientes = $stRank->fetchAll(PDO::FETCH_ASSOC);
+
+    $panoramaDetalhes = crmPanoramaCarregarDados($pdo, $id_loja, $id_loja_fid, $ids_clientes, $panoramaPeriodo);
 }
 
 $pageTitle = $cliente ? ('Relatório CRM · ' . $cliente['nome_completo']) : 'Relatório CRM por Cliente';
@@ -531,6 +536,189 @@ include 'includes/_head.php';
         padding: 14px 16px;
         margin-bottom: 12px;
         background: var(--bg-main);
+    }
+    .crm-period-banner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        background: var(--bg-widget);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 12px 18px;
+        margin-bottom: 18px;
+    }
+    .crm-period-presets {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .crm-preset-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-decoration: none;
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        color: var(--text-dark);
+        transition: all 0.18s ease;
+    }
+    .crm-preset-link:hover {
+        border-color: #1abc9c;
+        color: #1abc9c;
+    }
+    .crm-charts-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 1fr;
+        gap: 18px;
+        margin-bottom: 20px;
+    }
+    .crm-chart-box {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+    }
+    .crm-chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .crm-chart-header h4 {
+        margin: 0;
+        font-size: 0.94rem;
+        font-weight: 700;
+        color: var(--text-dark);
+    }
+    .crm-chart-wrap {
+        position: relative;
+        height: 310px;
+        width: 100%;
+    }
+    .crm-cross-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .crm-cross-mini {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding: 12px 14px;
+    }
+    .crm-cross-mini small {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .crm-cross-mini strong {
+        font-size: 1.08rem;
+        color: var(--text-dark);
+    }
+    .crm-share-track {
+        width: 110px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.22);
+        overflow: hidden;
+        margin-top: 4px;
+    }
+    .crm-share-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #1abc9c, #0ea5e9);
+    }
+    .crm-acq-tabs {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+    .crm-tab-btn,
+    .crm-pill-filter {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--border-color);
+        background: var(--bg-main);
+        color: var(--text-dark);
+        border-radius: 10px;
+        padding: 7px 14px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.18s ease;
+    }
+    .crm-pill-filter {
+        border-radius: 999px;
+        padding: 5px 12px;
+        font-size: 0.77rem;
+    }
+    .crm-tab-btn.active {
+        background: #1abc9c;
+        border-color: #1abc9c;
+        color: #0f172a;
+        font-weight: 700;
+    }
+    .crm-pill-filter.active {
+        background: #0ea5e9;
+        border-color: #0ea5e9;
+        color: #ffffff;
+    }
+    .crm-tab-count {
+        background: rgba(15, 23, 42, 0.12);
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+    }
+    html.dark-theme .crm-tab-btn:not(.active) .crm-tab-count {
+        background: rgba(255, 255, 255, 0.12);
+    }
+    .crm-badge-newcad {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    .crm-badge-oldcad {
+        background: #e0f2fe;
+        color: #075985;
+    }
+    .crm-badge-wait {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    html.dark-theme .crm-badge-newcad {
+        background: rgba(16, 185, 129, 0.18);
+        color: #6ee7b7;
+    }
+    html.dark-theme .crm-badge-oldcad {
+        background: rgba(56, 189, 248, 0.18);
+        color: #7dd3fc;
+    }
+    html.dark-theme .crm-badge-wait {
+        background: rgba(245, 158, 11, 0.18);
+        color: #fcd34d;
+    }
+    @media (max-width: 1120px) {
+        .crm-charts-grid {
+            grid-template-columns: 1fr;
+        }
     }
     @media (max-width: 1024px) {
         .crm-rep-filter-grid {
@@ -643,13 +831,9 @@ include 'includes/_head.php';
 
             <?php elseif ($cliente): ?>
                 <?php
-                    $telLimpo = preg_replace('/\D/', '', (string)($cliente['telefone'] ?? ''));
-                    if ($telLimpo !== '' && strlen($telLimpo) <= 11 && substr($telLimpo, 0, 2) !== '55') {
-                        $telLimpo = '55' . $telLimpo;
-                    }
                     $cartaoUrl = "cartao_cliente.php?cliente_id={$cliente['id']}&loja_id={$id_loja_fid}";
                     $msgZapCli = "Olá " . explode(' ', trim($cliente['nome_completo']))[0] . "! 🐾 Aqui é da Pet Shop. Confira seu cartão fidelidade e benefícios ativos em tempo real!";
-                    $linkZapCli = $telLimpo !== '' ? ("https://api.whatsapp.com/send?phone={$telLimpo}&text=" . rawurlencode($msgZapCli)) : '';
+                    $linkZapCli = crmFormatarWhatsappUrl($cliente['telefone'] ?? '', $msgZapCli);
                 ?>
 
                 <!-- HERO / DOSSIÊ DO CLIENTE -->
@@ -1109,93 +1293,7 @@ include 'includes/_head.php';
 
             <?php else: ?>
                 <!-- PANORAMA GERAL DE CLIENTES NO CRM (ANTES DE SELECIONAR UM CLIENTE ESPECÍFICO) -->
-                <div class="kpi-widgets" style="margin-bottom:22px;">
-                    <div class="widget-card kpi-card">
-                        <div class="card-icon blue"><i class="fas fa-users"></i></div>
-                        <div class="card-content">
-                            <span class="card-value"><?php echo $panoramaKpis['clientes_ativos']; ?></span>
-                            <span class="card-label">Clientes na Carteira CRM</span>
-                        </div>
-                    </div>
-                    <div class="widget-card kpi-card">
-                        <div class="card-icon green"><i class="fas fa-gift"></i></div>
-                        <div class="card-content">
-                            <span class="card-value"><?php echo $panoramaKpis['regras_prontas']; ?></span>
-                            <span class="card-label">Recompensas Modulares Prontas</span>
-                        </div>
-                    </div>
-                    <div class="widget-card kpi-card">
-                        <div class="card-icon purple"><i class="fas fa-wallet"></i></div>
-                        <div class="card-content">
-                            <span class="card-value">R$ <?php echo number_format($panoramaKpis['cashback_circulante'], 2, ',', '.'); ?></span>
-                            <span class="card-label">Cashback Ativo nas Carteiras</span>
-                        </div>
-                    </div>
-                    <div class="widget-card kpi-card">
-                        <div class="card-icon" style="background:#fce7f3;color:#db2777;"><i class="fas fa-bolt"></i></div>
-                        <div class="card-content">
-                            <span class="card-value"><?php echo $panoramaKpis['promos_usadas_total']; ?></span>
-                            <span class="card-label">Usos de Promoções Relâmpago</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="crm-section-card">
-                    <div class="crm-section-title">
-                        <h3><i class="fas fa-trophy" style="color:#f59e0b;"></i> Ranking de Clientes no CRM (Clique para abrir o Dossiê 360°)</h3>
-                        <small style="color:var(--text-muted);">Top <?php echo count($rankingClientes); ?> clientes por prêmios prontos e histórico</small>
-                    </div>
-                    <div class="table-container" style="overflow-x:auto;">
-                        <table class="data-table" style="width:100%;border-collapse:collapse;">
-                            <thead>
-                                <tr>
-                                    <th>Cliente</th>
-                                    <th>Tier / Selos Base</th>
-                                    <th>Pontos / Cashback</th>
-                                    <th>Ciclos Modulares</th>
-                                    <th>Promoções Usadas</th>
-                                    <th>Total Gasto</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($rankingClientes)): ?>
-                                    <?php foreach ($rankingClientes as $rk): ?>
-                                        <tr>
-                                            <td>
-                                                <strong><?php echo htmlspecialchars($rk['nome_completo']); ?></strong>
-                                                <div style="font-size:0.78rem;color:var(--text-muted);"><?php echo htmlspecialchars($rk['telefone'] ?: 'Sem telefone'); ?></div>
-                                            </td>
-                                            <td>
-                                                <span class="crm-badge" style="background:#fef3c7;color:#b45309;"><?php echo htmlspecialchars($rk['tier_atual']); ?></span>
-                                                <small style="margin-left:6px;"><?php echo (int)$rk['selos_atuais']; ?>/<?php echo (int)$cfg['compras_para_recompensa']; ?> selos</small>
-                                            </td>
-                                            <td>
-                                                <strong><?php echo (int)$rk['pontos_acumulados']; ?> pts</strong>
-                                                <div style="font-size:0.78rem;color:#10b981;">R$ <?php echo number_format((float)$rk['saldo_cashback'], 2, ',', '.'); ?></div>
-                                            </td>
-                                            <td>
-                                                <strong><?php echo (int)$rk['ciclos_modulares']; ?></strong> ciclo(s)
-                                                <?php if ((int)$rk['premios_prontos'] > 0): ?>
-                                                    <span class="crm-badge" style="background:#fef3c7;color:#b45309;margin-left:4px;"><?php echo (int)$rk['premios_prontos']; ?> pronto(s)</span>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td><?php echo (int)$rk['qtd_promos']; ?>x</td>
-                                            <td><strong>R$ <?php echo number_format((float)$rk['total_gasto_historico'], 2, ',', '.'); ?></strong></td>
-                                            <td>
-                                                <a href="relatorio_crm.php?cliente_id=<?php echo (int)$rk['id']; ?>" class="btn btn-sm btn-primary" style="text-decoration:none;white-space:nowrap;">
-                                                    <i class="fas fa-chart-pie"></i> Abrir Relatório
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr><td colspan="7">Nenhum cliente cadastrado nesta unidade.</td></tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <?php include __DIR__ . '/views/relatorio_crm_panorama_view.php'; ?>
             <?php endif; ?>
 
         </main>
