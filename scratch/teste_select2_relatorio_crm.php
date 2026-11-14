@@ -407,6 +407,8 @@ try {
         strpos($resPan['body'], 'Novo Cadastro + 1ª Compra') !== false,
         strpos($resPan['body'], "Bruno Sem Compras {$suf}") !== false,
         strpos($resPan['body'], 'Aguardando 1ª Compra') !== false,
+        strpos($resPan['body'], "data-promo-id=\"{$promoId}\"") !== false,
+        strpos($resPan['body'], 'id="modalDetalhePromocao"') !== false,
     ];
     ok(
         $resPan['status'] === 200 && $errPan === '' && !in_array(false, $checksPan, true),
@@ -427,6 +429,28 @@ try {
         $resPanFilt['status'] === 200 && $errPanFilt === '' && strpos($resPanFilt['body'], 'Filtro personalizado aplicado') !== false,
         'relatorio_crm.php Panorama aceita filtro personalizado de período',
         $errPanFilt
+    );
+
+    // 7b. Endpoint JSON de estatísticas individuais da promoção ativa
+    $resDetPromo = httpReq($baseUrl, "relatorio_crm.php?acao=detalhar_promocao&promocao_id={$promoId}&data_inicio={$hoje}&data_fim={$hoje}", 'GET', null, $cookies);
+    $jsonDetPromo = json_decode($resDetPromo['body'], true);
+    $dPr = $jsonDetPromo['dados'] ?? [];
+    $csNomes = array_map(static fn($x) => $x['nome_produto'] ?? '', $dPr['cross_sell'] ?? []);
+    $usosNomes = array_map(static fn($x) => $x['cliente_nome'] ?? '', $dPr['usos_lista'] ?? []);
+    $detOk = (
+        $resDetPromo['status'] === 200
+        && !empty($jsonDetPromo['success'])
+        && (int)($dPr['resumo']['qtd_usos'] ?? 0) === 1
+        && (int)($dPr['resumo']['clientes_primeira_compra'] ?? 0) === 1
+        && (float)($dPr['resumo']['faturamento_vendas_promo'] ?? 0) > 200.0
+        && in_array("Banho Tosa Select2 {$suf}", $csNomes, true)
+        && in_array("Ana Maria Select2 {$suf}", $usosNomes, true)
+        && !empty($dPr['pagamentos'])
+    );
+    ok(
+        $detOk,
+        'relatorio_crm.php?acao=detalhar_promocao retorna estatísticas individuais, cross-sell, pagamentos e lista de usos',
+        substr($resDetPromo['body'], 0, 300)
     );
 
     // 8. Testar relatorio_crm.php Dossiê 360°

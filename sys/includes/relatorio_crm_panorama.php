@@ -351,30 +351,13 @@ if (!function_exists('crmPanoramaCarregarDados')) {
         $serieQtd1a = [];
         $serieQtdCad = [];
 
-        if ($isMensal) {
-            $cur = new DateTime(substr($periodo['inicio'], 0, 7) . '-01');
-            $end = new DateTime(substr($periodo['fim'], 0, 7) . '-01');
-            while ($cur <= $end) {
-                $bk = $cur->format('Y-m');
-                $labels[] = $cur->format('m/Y');
-                $serieFatGeral[] = $mapV[$bk]['fat_geral'] ?? 0.0;
-                $serieFatPromo[] = $mapV[$bk]['fat_promo'] ?? 0.0;
-                $serieQtd1a[] = $mapPri[$bk] ?? 0;
-                $serieQtdCad[] = $mapCad[$bk] ?? 0;
-                $cur->modify('+1 month');
-            }
-        } else {
-            $cur = new DateTime($periodo['inicio']);
-            $end = new DateTime($periodo['fim']);
-            while ($cur <= $end) {
-                $bk = $cur->format('Y-m-d');
-                $labels[] = $cur->format('d/m');
-                $serieFatGeral[] = $mapV[$bk]['fat_geral'] ?? 0.0;
-                $serieFatPromo[] = $mapV[$bk]['fat_promo'] ?? 0.0;
-                $serieQtd1a[] = $mapPri[$bk] ?? 0;
-                $serieQtdCad[] = $mapCad[$bk] ?? 0;
-                $cur->modify('+1 day');
-            }
+        foreach (crmPanoramaGerarEixoTemporal($periodo) as $slot) {
+            $bk = $slot['key'];
+            $labels[] = $slot['label'];
+            $serieFatGeral[] = $mapV[$bk]['fat_geral'] ?? 0.0;
+            $serieFatPromo[] = $mapV[$bk]['fat_promo'] ?? 0.0;
+            $serieQtd1a[] = $mapPri[$bk] ?? 0;
+            $serieQtdCad[] = $mapCad[$bk] ?? 0;
         }
 
         return [
@@ -391,6 +374,307 @@ if (!function_exists('crmPanoramaCarregarDados')) {
                 'qtd_primeira_compra' => $serieQtd1a,
                 'qtd_novos_cadastros' => $serieQtdCad,
             ],
+        ];
+    }
+}
+
+if (!function_exists('crmPanoramaGerarEixoTemporal')) {
+    /**
+     * Gera sequência contínua de buckets (diários ou mensais) para gráficos temporais.
+     */
+    function crmPanoramaGerarEixoTemporal(array $periodo): array
+    {
+        $slots = [];
+        if (($periodo['granularity'] ?? 'day') === 'month') {
+            $cur = new DateTime(substr($periodo['inicio'], 0, 7) . '-01');
+            $end = new DateTime(substr($periodo['fim'], 0, 7) . '-01');
+            while ($cur <= $end) {
+                $slots[] = ['key' => $cur->format('Y-m'), 'label' => $cur->format('m/Y')];
+                $cur->modify('+1 month');
+            }
+        } else {
+            $cur = new DateTime($periodo['inicio']);
+            $end = new DateTime($periodo['fim']);
+            while ($cur <= $end) {
+                $slots[] = ['key' => $cur->format('Y-m-d'), 'label' => $cur->format('d/m')];
+                $cur->modify('+1 day');
+            }
+        }
+        return $slots;
+    }
+}
+
+if (!function_exists('crmPanoramaDetalharPromocao')) {
+    /**
+     * Carrega estatísticas individuais completas de uma promoção ativa (cruzada com vendas gerais,
+     * cross-sell, formas de pagamento, série temporal, reentrada e lista de usos).
+     */
+    function crmPanoramaDetalharPromocao(
+        PDO $pdo,
+        int $idLoja,
+        int $promocaoId,
+        array $periodo,
+        array $labelsPoliticaPromo = []
+    ): ?array {
+        $stPromo = $pdo->prepare("SELECT p.*, pr.nome_produto, pr.preco_venda AS produto_preco_atual
+                                  FROM promocoes p
+                                  LEFT JOIN produtos pr ON pr.id = p.produto_id
+                                  WHERE p.id = ? AND p.instituicao_id = ?
+                                  LIMIT 1");
+        $stPromo->execute([$promocaoId, $idLoja]);
+        $promo = $stPromo->fetch(PDO::FETCH_ASSOC);
+        if (!$promo) {
+            return null;
+        }
+
+        $iniDt = $periodo['inicio_dt'];
+        $fimDt = $periodo['fim_dt'];
+
+        $stVg = $pdo->prepare("SELECT COUNT(*) AS qtd_vendas, COALESCE(SUM(valor_total), 0) AS fat_geral
+                               FROM vendas
+                               WHERE instituicao_id = ? AND data_venda >= ? AND data_venda <= ?");
+        $stVg->execute([$idLoja, $iniDt, $fimDt]);
+        $vg = $stVg->fetch(PDO::FETCH_ASSOC) ?: ['qtd_vendas' => 0, 'fat_geral' => 0];
+        $qtdVendasGeral = (int)$vg['qtd_vendas'];
+        $fatGeral = (float)$vg['fat_geral'];
+        $ticketGeral = $qtdVendasGeral > 0 ? ($fatGeral / $qtdVendasGeral) : 0.0;
+
+        $stTotHist = $pdo->prepare("SELECT COUNT(*) FROM promocao_usos WHERE promocao_id = ? AND instituicao_id = ?");
+        $stTotHist->execute([$promocaoId, $idLoja]);
+        $usosCampanhaTotal = (int)$stTotHist->fetchColumn();
+
+        $stAgg = $pdo->prepare("SELECT COUNT(pu.id) AS qtd_usos,
+                                       COUNT(DISTINCT pu.cliente_id) AS clientes_unicos,
+                                       COUNT(DISTINCT pu.venda_id) AS vendas_com_promo,
+                                       COALESCE(SUM(pu.quantidade_itens), 0) AS itens_vendidos,
+                                       COALESCE(SUM(pu.valor_final_itens), 0) AS receita_itens_promo,
+                                       COALESCE(SUM(pu.desconto_aplicado), 0) AS desconto_concedido,
+                                       COALESCE(SUM(v.valor_total), 0) AS faturamento_vendas_promo
+                                FROM promocao_usos pu
+                                LEFT JOIN vendas v ON v.id = pu.venda_id
+                                WHERE pu.promocao_id = ? AND pu.instituicao_id = ?
+                                  AND pu.data_uso >= ? AND pu.data_uso <= ?");
+        $stAgg->execute([$promocaoId, $idLoja, $iniDt, $fimDt]);
+        $agg = $stAgg->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        $qtdUsos = (int)($agg['qtd_usos'] ?? 0);
+        $vendasPromo = (int)($agg['vendas_com_promo'] ?? 0);
+        $recItens = (float)($agg['receita_itens_promo'] ?? 0);
+        $descConcedido = (float)($agg['desconto_concedido'] ?? 0);
+        $fatVendas = (float)($agg['faturamento_vendas_promo'] ?? 0);
+        $crossSellTotal = max(0.0, $fatVendas - $recItens);
+        $ticketPromo = $vendasPromo > 0 ? ($fatVendas / $vendasPromo) : 0.0;
+        $varTicketPct = ($ticketGeral > 0 && $vendasPromo > 0) ? ((($ticketPromo / $ticketGeral) - 1.0) * 100.0) : 0.0;
+
+        $stPerfCli = $pdo->prepare("SELECT COUNT(*) AS cli_unicos_com_id,
+                                           SUM(CASE WHEN u.usos_no_periodo >= 2 THEN 1 ELSE 0 END) AS clientes_multi_uso,
+                                           SUM(CASE WHEN c.data_cadastro >= ? AND c.data_cadastro <= ? THEN 1 ELSE 0 END) AS clientes_novos_cadastros,
+                                           SUM(CASE WHEN fv.primeira_venda_id IS NOT NULL AND u.usou_na_primeira = 1 THEN 1 ELSE 0 END) AS clientes_primeira_compra
+                                    FROM (
+                                        SELECT pu.cliente_id,
+                                               COUNT(*) AS usos_no_periodo,
+                                               MAX(CASE WHEN pu.venda_id = fv_inner.primeira_venda_id THEN 1 ELSE 0 END) AS usou_na_primeira
+                                        FROM promocao_usos pu
+                                        LEFT JOIN (
+                                            SELECT cliente_id,
+                                                   CAST(SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY data_venda ASC, id ASC), ',', 1) AS UNSIGNED) AS primeira_venda_id
+                                            FROM vendas
+                                            WHERE instituicao_id = ? AND cliente_id IS NOT NULL
+                                            GROUP BY cliente_id
+                                        ) fv_inner ON fv_inner.cliente_id = pu.cliente_id
+                                        WHERE pu.promocao_id = ? AND pu.instituicao_id = ?
+                                          AND pu.data_uso >= ? AND pu.data_uso <= ?
+                                          AND pu.cliente_id IS NOT NULL
+                                        GROUP BY pu.cliente_id
+                                    ) u
+                                    JOIN clientes c ON c.id = u.cliente_id
+                                    LEFT JOIN (
+                                        SELECT cliente_id,
+                                               CAST(SUBSTRING_INDEX(GROUP_CONCAT(id ORDER BY data_venda ASC, id ASC), ',', 1) AS UNSIGNED) AS primeira_venda_id
+                                        FROM vendas
+                                        WHERE instituicao_id = ? AND cliente_id IS NOT NULL
+                                        GROUP BY cliente_id
+                                    ) fv ON fv.cliente_id = u.cliente_id");
+        $stPerfCli->execute([$iniDt, $fimDt, $idLoja, $promocaoId, $idLoja, $iniDt, $fimDt, $idLoja]);
+        $perfCli = $stPerfCli->fetch(PDO::FETCH_ASSOC) ?: [];
+
+        // Série temporal individual da promoção
+        $fmtSqlPu = (($periodo['granularity'] ?? 'day') === 'month')
+            ? "DATE_FORMAT(pu.data_uso, '%Y-%m')"
+            : "DATE(pu.data_uso)";
+        $stSerP = $pdo->prepare("SELECT {$fmtSqlPu} AS bucket,
+                                        COUNT(pu.id) AS qtd_usos,
+                                        COALESCE(SUM(pu.desconto_aplicado), 0) AS desconto,
+                                        COALESCE(SUM(v.valor_total), 0) AS fat_vendas
+                                 FROM promocao_usos pu
+                                 LEFT JOIN vendas v ON v.id = pu.venda_id
+                                 WHERE pu.promocao_id = ? AND pu.instituicao_id = ?
+                                   AND pu.data_uso >= ? AND pu.data_uso <= ?
+                                 GROUP BY bucket
+                                 ORDER BY bucket ASC");
+        $stSerP->execute([$promocaoId, $idLoja, $iniDt, $fimDt]);
+        $mapSerP = [];
+        foreach ($stSerP->fetchAll(PDO::FETCH_ASSOC) as $sr) {
+            $mapSerP[(string)$sr['bucket']] = $sr;
+        }
+        $serLabels = [];
+        $serFat = [];
+        $serDesc = [];
+        $serUsos = [];
+        foreach (crmPanoramaGerarEixoTemporal($periodo) as $slot) {
+            $bk = $slot['key'];
+            $serLabels[] = $slot['label'];
+            $serFat[] = isset($mapSerP[$bk]) ? round((float)$mapSerP[$bk]['fat_vendas'], 2) : 0.0;
+            $serDesc[] = isset($mapSerP[$bk]) ? round((float)$mapSerP[$bk]['desconto'], 2) : 0.0;
+            $serUsos[] = isset($mapSerP[$bk]) ? (int)$mapSerP[$bk]['qtd_usos'] : 0;
+        }
+
+        // Cross-sell: o que os clientes mais compram na mesma venda junto com esta promoção
+        $stCs = $pdo->prepare("SELECT vi.nome_produto,
+                                      COUNT(DISTINCT vi.venda_id) AS vendas,
+                                      COALESCE(SUM(vi.quantidade), 0) AS qtd_itens,
+                                      COALESCE(SUM(vi.subtotal), 0) AS receita
+                               FROM promocao_usos pu
+                               JOIN promocoes p ON p.id = pu.promocao_id
+                               JOIN venda_itens vi ON vi.venda_id = pu.venda_id
+                               WHERE pu.promocao_id = ? AND pu.instituicao_id = ?
+                                 AND pu.data_uso >= ? AND pu.data_uso <= ?
+                                 AND (vi.produto_id IS NULL OR p.produto_id IS NULL OR vi.produto_id != p.produto_id)
+                               GROUP BY vi.nome_produto
+                               ORDER BY vendas DESC, receita DESC
+                               LIMIT 6");
+        $stCs->execute([$promocaoId, $idLoja, $iniDt, $fimDt]);
+        $crossSellItens = [];
+        foreach ($stCs->fetchAll(PDO::FETCH_ASSOC) as $csRow) {
+            $crossSellItens[] = [
+                'nome_produto' => (string)$csRow['nome_produto'],
+                'vendas' => (int)$csRow['vendas'],
+                'qtd_itens' => (int)$csRow['qtd_itens'],
+                'receita' => round((float)$csRow['receita'], 2),
+            ];
+        }
+
+        // Distribuição por forma de pagamento
+        $stPag = $pdo->prepare("SELECT COALESCE(NULLIF(v.forma_pagamento, ''), 'Não informado') AS forma_pagamento,
+                                       COUNT(*) AS qtd,
+                                       COALESCE(SUM(v.valor_total), 0) AS total
+                                FROM promocao_usos pu
+                                JOIN vendas v ON v.id = pu.venda_id
+                                WHERE pu.promocao_id = ? AND pu.instituicao_id = ?
+                                  AND pu.data_uso >= ? AND pu.data_uso <= ?
+                                GROUP BY forma_pagamento
+                                ORDER BY qtd DESC, total DESC");
+        $stPag->execute([$promocaoId, $idLoja, $iniDt, $fimDt]);
+        $pagamentos = [];
+        $totPagQtd = 0;
+        $pagRaw = $stPag->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($pagRaw as $pr) {
+            $totPagQtd += (int)$pr['qtd'];
+        }
+        foreach ($pagRaw as $pr) {
+            $qPag = (int)$pr['qtd'];
+            $pagamentos[] = [
+                'forma_pagamento' => (string)$pr['forma_pagamento'],
+                'qtd' => $qPag,
+                'total' => round((float)$pr['total'], 2),
+                'pct' => $totPagQtd > 0 ? round(($qPag / $totPagQtd) * 100.0, 1) : 0.0,
+            ];
+        }
+
+        // Últimos 50 usos detalhados (clientes e vendas que usaram esta promoção)
+        $stUsos = $pdo->prepare("SELECT pu.id AS uso_id, pu.venda_id, pu.cliente_id, pu.quantidade_itens,
+                                        pu.desconto_aplicado, pu.valor_final_itens, pu.data_uso,
+                                        v.valor_total AS venda_valor_total, v.forma_pagamento,
+                                        c.nome_completo, c.telefone, c.data_cadastro,
+                                        (SELECT GROUP_CONCAT(pt.nome SEPARATOR ', ') FROM pets pt WHERE pt.cliente_id = c.id) AS pets_nomes,
+                                        (SELECT COUNT(*) FROM promocao_usos pu2 WHERE pu2.promocao_id = pu.promocao_id AND pu2.cliente_id = pu.cliente_id) AS usos_cliente_promo,
+                                        (SELECT COUNT(*) FROM vendas vp WHERE vp.cliente_id = pu.cliente_id AND vp.instituicao_id = ? AND vp.data_venda < v.data_venda) AS compras_anteriores
+                                 FROM promocao_usos pu
+                                 LEFT JOIN vendas v ON v.id = pu.venda_id
+                                 LEFT JOIN clientes c ON c.id = pu.cliente_id
+                                 WHERE pu.promocao_id = ? AND pu.instituicao_id = ?
+                                   AND pu.data_uso >= ? AND pu.data_uso <= ?
+                                 ORDER BY pu.data_uso DESC, pu.id DESC
+                                 LIMIT 50");
+        $stUsos->execute([$idLoja, $promocaoId, $idLoja, $iniDt, $fimDt]);
+        $usosLista = [];
+        foreach ($stUsos->fetchAll(PDO::FETCH_ASSOC) as $ur) {
+            $cliCad = (string)($ur['data_cadastro'] ?? '');
+            $usosLista[] = [
+                'uso_id' => (int)$ur['uso_id'],
+                'venda_id' => (int)($ur['venda_id'] ?? 0),
+                'cliente_id' => (int)($ur['cliente_id'] ?? 0),
+                'cliente_nome' => $ur['nome_completo'] ?: 'Cliente Balcão (Anônimo)',
+                'telefone' => (string)($ur['telefone'] ?? ''),
+                'pets_nomes' => (string)($ur['pets_nomes'] ?? ''),
+                'data_uso' => (string)$ur['data_uso'],
+                'data_uso_fmt' => date('d/m/Y H:i', strtotime($ur['data_uso'])),
+                'quantidade_itens' => (int)$ur['quantidade_itens'],
+                'desconto_aplicado' => round((float)$ur['desconto_aplicado'], 2),
+                'valor_final_itens' => round((float)$ur['valor_final_itens'], 2),
+                'venda_valor_total' => round((float)($ur['venda_valor_total'] ?? $ur['valor_final_itens']), 2),
+                'forma_pagamento' => (string)($ur['forma_pagamento'] ?? '-'),
+                'usos_cliente_promo' => (int)($ur['usos_cliente_promo'] ?? 1),
+                'is_primeira_compra' => ((int)($ur['cliente_id'] ?? 0) > 0 && (int)($ur['compras_anteriores'] ?? 0) === 0),
+                'is_novo_cadastro' => ($cliCad !== '' && $cliCad >= $iniDt && $cliCad <= $fimDt),
+            ];
+        }
+
+        $polKey = (string)($promo['politica_reentrada'] ?? 'ilimitada');
+        return [
+            'periodo' => [
+                'inicio' => date('d/m/Y', strtotime($periodo['inicio'])),
+                'fim' => date('d/m/Y', strtotime($periodo['fim'])),
+                'dias' => (int)$periodo['dias'],
+            ],
+            'promocao' => [
+                'id' => (int)$promo['id'],
+                'titulo' => (string)$promo['titulo'],
+                'descricao' => (string)($promo['descricao'] ?? ''),
+                'nome_produto' => (string)($promo['nome_produto'] ?? ''),
+                'desconto_percentual' => round((float)$promo['desconto_percentual'], 1),
+                'preco_original' => round((float)$promo['preco_original'], 2),
+                'preco_promocional' => round((float)$promo['preco_promocional'], 2),
+                'politica_reentrada' => $polKey,
+                'politica_label' => $labelsPoliticaPromo[$polKey] ?? $polKey,
+                'cooldown_dias' => (int)($promo['cooldown_dias'] ?? 0),
+                'limite_usos_cliente' => (int)($promo['limite_usos_cliente'] ?? 0),
+                'limite_usos_global' => (int)($promo['limite_usos_global'] ?? 0),
+                'usos_globais_atuais' => (int)($promo['usos_globais_atuais'] ?? 0),
+                'aplicar_automatico_pdv' => ((int)($promo['aplicar_automatico_pdv'] ?? 0) === 1),
+                'data_inicio_fmt' => !empty($promo['data_inicio']) ? date('d/m/Y', strtotime($promo['data_inicio'])) : '-',
+                'data_fim_fmt' => !empty($promo['data_fim']) ? date('d/m/Y', strtotime($promo['data_fim'])) : '-',
+            ],
+            'resumo' => [
+                'qtd_usos' => $qtdUsos,
+                'usos_campanha_total' => $usosCampanhaTotal,
+                'clientes_unicos' => (int)($agg['clientes_unicos'] ?? 0),
+                'vendas_com_promo' => $vendasPromo,
+                'itens_vendidos' => (int)($agg['itens_vendidos'] ?? 0),
+                'receita_itens_promo' => round($recItens, 2),
+                'desconto_concedido' => round($descConcedido, 2),
+                'faturamento_vendas_promo' => round($fatVendas, 2),
+                'faturamento_cross_sell' => round($crossSellTotal, 2),
+                'faturamento_geral_loja' => round($fatGeral, 2),
+                'qtd_vendas_geral_loja' => $qtdVendasGeral,
+                'ticket_medio_promo' => round($ticketPromo, 2),
+                'ticket_medio_geral' => round($ticketGeral, 2),
+                'variacao_ticket_pct' => round($varTicketPct, 1),
+                'share_vendas_geral_pct' => $fatGeral > 0 ? round(($fatVendas / $fatGeral) * 100.0, 2) : 0.0,
+                'roi_desconto' => $descConcedido > 0 ? round($fatVendas / $descConcedido, 1) : 0.0,
+                'clientes_multi_uso' => (int)($perfCli['clientes_multi_uso'] ?? 0),
+                'clientes_primeira_compra' => (int)($perfCli['clientes_primeira_compra'] ?? 0),
+                'clientes_novos_cadastros' => (int)($perfCli['clientes_novos_cadastros'] ?? 0),
+            ],
+            'serie' => [
+                'labels' => $serLabels,
+                'fat_vendas' => $serFat,
+                'desconto' => $serDesc,
+                'qtd_usos' => $serUsos,
+            ],
+            'cross_sell' => $crossSellItens,
+            'pagamentos' => $pagamentos,
+            'usos_lista' => $usosLista,
         ];
     }
 }

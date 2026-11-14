@@ -26,6 +26,7 @@ $liftTicketPct = ($vg['ticket_medio_sem_promo'] ?? 0) > 0 && ($vg['qtd_com_promo
     : 0.0;
 
 $promoChartPayload = [
+    'promoIds' => array_map(static fn($p) => (int)$p['id'], $promosAtivas),
     'labels' => array_map(static function ($p) {
         $t = (string)$p['titulo'];
         return mb_strlen($t) > 32 ? (mb_substr($t, 0, 29) . '...') : $t;
@@ -40,6 +41,8 @@ $promoChartPayload = [
     'ticketMedioPromo' => array_map(static fn($p) => round((float)$p['ticket_medio_venda'], 2), $promosAtivas),
     'ticketMedioGeral' => round((float)($vg['ticket_medio_geral'] ?? 0), 2),
     'fatGeralTotal' => round((float)($vg['fat_geral'] ?? 0), 2),
+    'perIni' => $perIni,
+    'perFim' => $perFim,
 ];
 ?>
 
@@ -224,6 +227,11 @@ $promoChartPayload = [
 
     <!-- TABELA CRUZADA DE CADA PROMOÇÃO ATIVA -->
     <?php if (!empty($promosAtivas)): ?>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;" class="no-print">
+            <small style="color:var(--text-muted);font-weight:600;">
+                <i class="fas fa-mouse-pointer" style="color:#1abc9c;"></i> Clique em qualquer promoção abaixo (ou na barra do gráfico) para abrir as estatísticas individuais
+            </small>
+        </div>
         <div class="table-container" style="overflow-x:auto;">
             <table class="data-table" style="width:100%;border-collapse:collapse;">
                 <thead>
@@ -244,9 +252,14 @@ $promoChartPayload = [
                         $sharePct = (float)$pa['share_vendas_geral_pct'];
                         $barWidth = min(100, max($pa['faturamento_vendas_promo'] > 0 ? 3 : 0, $sharePct * 4));
                     ?>
-                        <tr>
+                        <tr class="crm-promo-clickable"
+                            data-promo-id="<?php echo (int)$pa['id']; ?>"
+                            tabindex="0"
+                            role="button"
+                            title="Clique para ver estatísticas individuais desta promoção">
                             <td>
                                 <strong><?php echo htmlspecialchars($pa['titulo']); ?></strong>
+                                <span class="crm-promo-inspect-hint no-print"><i class="fas fa-chart-line"></i> Ver estatísticas</span>
                                 <div style="font-size:0.76rem;color:var(--text-muted);margin-top:2px;">
                                     <span class="crm-badge crm-badge-oldcad"><?php echo htmlspecialchars($polLabel); ?></span>
                                     <?php if (!empty($pa['nome_produto'])): ?>
@@ -608,6 +621,90 @@ $promoChartPayload = [
     </div>
 </div>
 
+<!-- MODAL INDIVIDUAL: ESTATÍSTICAS DA PROMOÇÃO ATIVA -->
+<div id="modalDetalhePromocao" class="crm-modal-backdrop no-print" aria-hidden="true">
+    <div class="crm-modal-box" role="dialog" aria-modal="true" aria-labelledby="modalPromoTitle">
+        <div class="crm-modal-head">
+            <div style="flex:1;min-width:220px;">
+                <div id="modalPromoBadges" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;"></div>
+                <h3 id="modalPromoTitle" style="margin:0 0 4px 0;font-size:1.22rem;color:var(--text-dark);">Estatísticas da Promoção</h3>
+                <div id="modalPromoSub" style="font-size:0.82rem;color:var(--text-muted);"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <a href="fidelizacao.php" class="btn btn-sm btn-secondary" style="text-decoration:none;">
+                    <i class="fas fa-sliders-h"></i> Editar Promoções
+                </a>
+                <button type="button" id="btnFecharModalPromo" class="crm-modal-close" title="Fechar (Esc)" aria-label="Fechar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="crm-modal-body">
+            <div id="modalPromoLoading" style="text-align:center;padding:42px 16px;color:var(--text-muted);">
+                <i class="fas fa-spinner fa-spin" style="font-size:1.8rem;color:#1abc9c;margin-bottom:10px;"></i>
+                <p style="margin:0;">Carregando estatísticas individuais da promoção...</p>
+            </div>
+            <div id="modalPromoError" style="display:none;text-align:center;padding:30px 16px;color:#ef4444;"></div>
+            <div id="modalPromoContent" style="display:none;">
+                <div class="crm-modal-kpis" id="modalPromoKpis"></div>
+
+                <div class="crm-modal-grid">
+                    <div class="crm-chart-box">
+                        <div class="crm-chart-header">
+                            <div>
+                                <h4>Evolução Individual no Período</h4>
+                                <small style="color:var(--text-muted);">Faturamento das cestas com esta promoção, descontos e quantidade de usos</small>
+                            </div>
+                        </div>
+                        <div class="crm-chart-wrap" style="height:260px;">
+                            <canvas id="chartModalPromoSerie"></canvas>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                        <div class="crm-chart-box">
+                            <h4 style="margin:0 0 8px 0;font-size:0.92rem;color:var(--text-dark);">
+                                <i class="fas fa-shopping-basket" style="color:#1abc9c;"></i> Itens Mais Comprados Junto (Cross-sell)
+                            </h4>
+                            <div id="modalPromoCrossSell" style="font-size:0.82rem;"></div>
+                        </div>
+                        <div class="crm-chart-box">
+                            <h4 style="margin:0 0 8px 0;font-size:0.92rem;color:var(--text-dark);">
+                                <i class="fas fa-credit-card" style="color:#3b82f6;"></i> Formas de Pagamento
+                            </h4>
+                            <div id="modalPromoPagamentos" style="font-size:0.82rem;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="crm-chart-box">
+                    <div class="crm-chart-header">
+                        <div>
+                            <h4>Últimos Clientes &amp; Vendas com esta Promoção</h4>
+                            <small style="color:var(--text-muted);" id="modalPromoUsosSub">Até 50 usos mais recentes no período selecionado</small>
+                        </div>
+                    </div>
+                    <div class="table-container" style="overflow-x:auto;">
+                        <table class="data-table" style="width:100%;border-collapse:collapse;">
+                            <thead>
+                                <tr>
+                                    <th>Cliente / Pet</th>
+                                    <th>Data &amp; Venda</th>
+                                    <th>Perfil na Compra</th>
+                                    <th>Itens &amp; Desconto</th>
+                                    <th>Total da Venda</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalPromoUsosBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // 1. Alternância de abas & filtros na seção Aquisição (1ª Compra & Novos Cadastros)
@@ -792,6 +889,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
+                onHover: (event, elements) => {
+                    if (event && event.native && event.native.target) {
+                        event.native.target.style.cursor = (elements && elements.length > 0) ? 'pointer' : 'default';
+                    }
+                },
+                onClick: (event, elements) => {
+                    if (elements && elements.length > 0 && promoPayload.promoIds) {
+                        const idx = elements[0].index;
+                        const pid = promoPayload.promoIds[idx];
+                        if (pid) abrirDetalhePromocao(pid);
+                    }
+                },
                 plugins: {
                     legend: { labels: { color: pal.text, boxWidth: 12, font: { size: 11 } } },
                     tooltip: {
@@ -956,12 +1065,332 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // 3. Modal de Estatísticas Individuais da Promoção Ativa
+    const modalPromo = document.getElementById('modalDetalhePromocao');
+    const modalLoading = document.getElementById('modalPromoLoading');
+    const modalError = document.getElementById('modalPromoError');
+    const modalContent = document.getElementById('modalPromoContent');
+    let chartModalPromo = null;
+    let ultimoDetalhePromo = null;
+
+    const escHtml = str => String(str === null || str === undefined ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    function fecharModalPromo() {
+        if (!modalPromo) return;
+        modalPromo.classList.remove('open');
+        modalPromo.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderModalPromoSerie(serieData) {
+        const canvas = document.getElementById('chartModalPromoSerie');
+        if (!canvas || !serieData || !serieData.labels) return;
+        if (chartModalPromo) chartModalPromo.destroy();
+        const pal = getChartPalette();
+
+        chartModalPromo = new Chart(canvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: serieData.labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Vendas c/ Promo (R$)',
+                        data: serieData.fat_vendas,
+                        backgroundColor: 'rgba(26, 188, 156, 0.72)',
+                        borderColor: '#1abc9c',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Desconto (R$)',
+                        data: serieData.desconto,
+                        backgroundColor: 'rgba(236, 72, 153, 0.72)',
+                        borderColor: '#ec4899',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        yAxisID: 'y',
+                        order: 1
+                    },
+                    {
+                        type: 'line',
+                        label: 'Qtd. Usos',
+                        data: serieData.qtd_usos,
+                        borderColor: '#f59e0b',
+                        borderWidth: 2.5,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        yAxisID: 'y1',
+                        order: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { color: pal.text, boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.dataset.yAxisID === 'y1'
+                                ? `${ctx.dataset.label}: ${ctx.parsed.y}`
+                                : `${ctx.dataset.label}: ${fmtBRL(ctx.parsed.y)}`
+                        }
+                    }
+                },
+                scales: {
+                    x: { ticks: { color: pal.text, maxTicksLimit: 10, font: { size: 11 } }, grid: { color: pal.grid } },
+                    y: {
+                        beginAtZero: true,
+                        position: 'left',
+                        ticks: { color: pal.text, callback: v => 'R$ ' + new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(v) },
+                        grid: { color: pal.grid }
+                    },
+                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b', precision: 0 } }
+                }
+            }
+        });
+    }
+
+    function preencherModalPromo(dados) {
+        ultimoDetalhePromo = dados;
+        const p = dados.promocao || {};
+        const r = dados.resumo || {};
+        const per = dados.periodo || {};
+
+        const badgesEl = document.getElementById('modalPromoBadges');
+        const titleEl = document.getElementById('modalPromoTitle');
+        const subEl = document.getElementById('modalPromoSub');
+        const kpisEl = document.getElementById('modalPromoKpis');
+        const csEl = document.getElementById('modalPromoCrossSell');
+        const pagEl = document.getElementById('modalPromoPagamentos');
+        const bodyEl = document.getElementById('modalPromoUsosBody');
+        const usosSubEl = document.getElementById('modalPromoUsosSub');
+
+        if (titleEl) titleEl.textContent = p.titulo || 'Promoção Ativa';
+        if (badgesEl) {
+            let bHtml = `<span class="crm-badge crm-badge-oldcad">${escHtml(p.politica_label)}</span>`;
+            if (p.desconto_percentual > 0) {
+                bHtml += `<span class="crm-badge" style="background:rgba(236,72,153,0.16);color:#ec4899;">${Number(p.desconto_percentual).toFixed(0)}% OFF</span>`;
+            }
+            if (p.aplicar_automatico_pdv) {
+                bHtml += `<span class="crm-badge crm-badge-newcad">Automática no PDV</span>`;
+            }
+            bHtml += `<span class="crm-badge" style="background:rgba(148,163,184,0.16);color:var(--text-muted);">Período: ${escHtml(per.inicio)} a ${escHtml(per.fim)}</span>`;
+            badgesEl.innerHTML = bHtml;
+        }
+        if (subEl) {
+            const precoInfo = p.preco_promocional > 0
+                ? ` · De ${fmtBRL(p.preco_original)} por ${fmtBRL(p.preco_promocional)}`
+                : '';
+            const limCli = p.limite_usos_cliente > 0 ? `${p.limite_usos_cliente}x por cliente` : 'Sem limite/cliente';
+            const limGlb = p.limite_usos_global > 0 ? ` · Cota global: ${p.usos_globais_atuais}/${p.limite_usos_global}` : '';
+            subEl.textContent = `${p.nome_produto ? p.nome_produto + ' · ' : ''}Vigência ${p.data_inicio_fmt} a ${p.data_fim_fmt}${precoInfo} · ${limCli}${limGlb}`;
+        }
+
+        if (kpisEl) {
+            const varSinal = r.variacao_ticket_pct >= 0 ? '+' : '';
+            const varCor = r.variacao_ticket_pct >= 0 ? '#10b981' : '#f59e0b';
+            kpisEl.innerHTML = `
+                <div class="crm-modal-kpi">
+                    <small>Usos no Período (Histórico: ${r.usos_campanha_total})</small>
+                    <strong>${r.qtd_usos} uso(s)</strong>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+                        ${r.clientes_unicos} cliente(s) únicos · ${r.clientes_multi_uso} reutilizaram
+                    </div>
+                </div>
+                <div class="crm-modal-kpi">
+                    <small>Vendas c/ esta Promo (% da Loja)</small>
+                    <strong style="color:#10b981;">${fmtBRL(r.faturamento_vendas_promo)}</strong>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+                        ${Number(r.share_vendas_geral_pct || 0).toFixed(2)}% de ${fmtBRL(r.faturamento_geral_loja)} (${r.vendas_com_promo} vendas)
+                    </div>
+                </div>
+                <div class="crm-modal-kpi">
+                    <small>Itens Promo vs Cross-sell Cesta</small>
+                    <strong>${fmtBRL(r.receita_itens_promo)}</strong>
+                    <div style="font-size:0.75rem;color:#38bdf8;margin-top:2px;">
+                        +${fmtBRL(r.faturamento_cross_sell)} em outros itens (${r.itens_vendidos} un.)
+                    </div>
+                </div>
+                <div class="crm-modal-kpi">
+                    <small>Desconto Concedido &amp; ROI</small>
+                    <strong style="color:#ec4899;">-${fmtBRL(r.desconto_concedido)}</strong>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+                        ROI da cesta: ${Number(r.roi_desconto || 0).toFixed(1)}x sobre o desconto
+                    </div>
+                </div>
+                <div class="crm-modal-kpi">
+                    <small>Ticket Médio (vs Geral ${fmtBRL(r.ticket_medio_geral)})</small>
+                    <strong>${fmtBRL(r.ticket_medio_promo)}</strong>
+                    <div style="font-size:0.75rem;color:${varCor};font-weight:700;margin-top:2px;">
+                        ${r.vendas_com_promo > 0 ? `${varSinal}${Number(r.variacao_ticket_pct || 0).toFixed(1)}% vs Ticket Geral` : 'Sem vendas no período'}
+                    </div>
+                </div>
+                <div class="crm-modal-kpi">
+                    <small>Atração de Novos Clientes</small>
+                    <strong style="color:#0ea5e9;">${r.clientes_primeira_compra} em 1ª compra</strong>
+                    <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">
+                        ${r.clientes_novos_cadastros} cadastrado(s) no período
+                    </div>
+                </div>
+            `;
+        }
+
+        if (csEl) {
+            const csList = dados.cross_sell || [];
+            if (csList.length === 0) {
+                csEl.innerHTML = '<div style="color:var(--text-muted);">Nenhum outro item agregado encontrado nas vendas desta promoção.</div>';
+            } else {
+                csEl.innerHTML = csList.map(item => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-color-light);">
+                        <div style="min-width:0;">
+                            <div style="font-weight:600;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(item.nome_produto)}</div>
+                            <small style="color:var(--text-muted);">${item.vendas} venda(s) · ${item.qtd_itens} un.</small>
+                        </div>
+                        <strong style="color:#10b981;white-space:nowrap;">${fmtBRL(item.receita)}</strong>
+                    </div>
+                `).join('');
+            }
+        }
+
+        if (pagEl) {
+            const pgList = dados.pagamentos || [];
+            if (pgList.length === 0) {
+                pagEl.innerHTML = '<div style="color:var(--text-muted);">Sem vendas registradas no período.</div>';
+            } else {
+                pagEl.innerHTML = pgList.map(pg => `
+                    <div class="crm-pay-row">
+                        <div style="display:flex;justify-content:space-between;gap:8px;">
+                            <span style="font-weight:600;color:var(--text-dark);">${escHtml(pg.forma_pagamento)} (${pg.qtd}x)</span>
+                            <span style="color:var(--text-muted);">${fmtBRL(pg.total)} · <strong>${Number(pg.pct).toFixed(1)}%</strong></span>
+                        </div>
+                        <div class="crm-pay-bar-track"><div class="crm-pay-bar-fill" style="width:${Math.min(100, Number(pg.pct))}%"></div></div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        const usos = dados.usos_lista || [];
+        if (usosSubEl) {
+            usosSubEl.textContent = `Exibindo ${usos.length} uso(s) mais recente(s) no período`;
+        }
+        if (bodyEl) {
+            if (usos.length === 0) {
+                bodyEl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">Nenhum cliente utilizou esta promoção no período selecionado.</td></tr>';
+            } else {
+                bodyEl.innerHTML = usos.map(u => {
+                    let badgesUso = '';
+                    if (u.is_primeira_compra) badgesUso += '<span class="crm-badge crm-badge-newcad">1ª Compra na Loja</span> ';
+                    if (u.is_novo_cadastro) badgesUso += '<span class="crm-badge crm-badge-oldcad">Novo Cadastro</span> ';
+                    if (u.usos_cliente_promo > 1) badgesUso += `<span class="crm-badge crm-badge-wait">${u.usos_cliente_promo}x nesta promo</span> `;
+                    if (!badgesUso) badgesUso = '<span style="color:var(--text-muted);font-size:0.78rem;">Cliente Recorrente</span>';
+
+                    const acaoHtml = u.cliente_id > 0
+                        ? `<a href="relatorio_crm.php?cliente_id=${u.cliente_id}" class="btn btn-sm btn-primary" style="text-decoration:none;white-space:nowrap;"><i class="fas fa-chart-pie"></i> Dossiê</a>`
+                        : '<span style="color:var(--text-muted);font-size:0.76rem;">Anônimo</span>';
+
+                    return `
+                        <tr>
+                            <td>
+                                <strong>${escHtml(u.cliente_nome)}</strong>
+                                <div style="font-size:0.76rem;color:var(--text-muted);">
+                                    ${escHtml(u.telefone || 'Sem telefone')}${u.pets_nomes ? ' · ' + escHtml(u.pets_nomes) : ''}
+                                </div>
+                            </td>
+                            <td>
+                                <strong>${escHtml(u.data_uso_fmt)}</strong>
+                                <div style="font-size:0.76rem;color:var(--text-muted);">${u.venda_id > 0 ? 'Venda #' + u.venda_id : '-'} · ${escHtml(u.forma_pagamento)}</div>
+                            </td>
+                            <td>${badgesUso}</td>
+                            <td>
+                                <strong>${fmtBRL(u.valor_final_itens)}</strong> (${u.quantidade_itens} un.)
+                                <div style="font-size:0.76rem;color:#ec4899;font-weight:700;">-${fmtBRL(u.desconto_aplicado)}</div>
+                            </td>
+                            <td><strong style="color:#10b981;">${fmtBRL(u.venda_valor_total)}</strong></td>
+                            <td>${acaoHtml}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        renderModalPromoSerie(dados.serie);
+    }
+
+    function abrirDetalhePromocao(promoId) {
+        if (!modalPromo || !promoId) return;
+        modalPromo.classList.add('open');
+        modalPromo.setAttribute('aria-hidden', 'false');
+        if (modalLoading) modalLoading.style.display = 'block';
+        if (modalError) modalError.style.display = 'none';
+        if (modalContent) modalContent.style.display = 'none';
+
+        const url = `relatorio_crm.php?acao=detalhar_promocao&promocao_id=${encodeURIComponent(promoId)}&data_inicio=${encodeURIComponent(promoPayload.perIni || '')}&data_fim=${encodeURIComponent(promoPayload.perFim || '')}`;
+        fetch(url, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(res => {
+                if (modalLoading) modalLoading.style.display = 'none';
+                if (!res || !res.success || !res.dados) {
+                    if (modalError) {
+                        modalError.textContent = (res && res.message) ? res.message : 'Não foi possível carregar os detalhes desta promoção.';
+                        modalError.style.display = 'block';
+                    }
+                    return;
+                }
+                if (modalContent) modalContent.style.display = 'block';
+                preencherModalPromo(res.dados);
+            })
+            .catch(() => {
+                if (modalLoading) modalLoading.style.display = 'none';
+                if (modalError) {
+                    modalError.textContent = 'Erro de comunicação ao buscar estatísticas individuais da promoção.';
+                    modalError.style.display = 'block';
+                }
+            });
+    }
+
+    document.querySelectorAll('.crm-promo-clickable').forEach(row => {
+        row.addEventListener('click', function() {
+            const pid = parseInt(this.dataset.promoId || '0', 10);
+            if (pid > 0) abrirDetalhePromocao(pid);
+        });
+        row.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const pid = parseInt(this.dataset.promoId || '0', 10);
+                if (pid > 0) abrirDetalhePromocao(pid);
+            }
+        });
+    });
+
+    document.getElementById('btnFecharModalPromo')?.addEventListener('click', fecharModalPromo);
+    modalPromo?.addEventListener('click', function(e) {
+        if (e.target === modalPromo) fecharModalPromo();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modalPromo && modalPromo.classList.contains('open')) {
+            fecharModalPromo();
+        }
+    });
+
     renderPromoChart('faturamento');
     renderSerieChart();
 
     window.addEventListener('petcrm:theme-change', function() {
         renderPromoChart(currentPromoMode);
         renderSerieChart();
+        if (ultimoDetalhePromo && modalPromo && modalPromo.classList.contains('open')) {
+            renderModalPromoSerie(ultimoDetalhePromo.serie);
+        }
     });
 });
 </script>

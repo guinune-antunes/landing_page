@@ -53,6 +53,23 @@ $labelsPoliticaPromo = [
     'cooldown_dias' => 'Carência (Dias)',
 ];
 
+if (isset($_GET['acao']) && $_GET['acao'] === 'detalhar_promocao') {
+    header('Content-Type: application/json; charset=utf-8');
+    $promoIdReq = (int)($_GET['promocao_id'] ?? 0);
+    if ($promoIdReq <= 0) {
+        echo json_encode(['success' => false, 'message' => 'Promoção inválida.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $periodoReq = crmPanoramaResolverPeriodo(trim($_GET['data_inicio'] ?? ''), trim($_GET['data_fim'] ?? ''));
+    $detalheReq = crmPanoramaDetalharPromocao($pdo, $id_loja, $promoIdReq, $periodoReq, $labelsPoliticaPromo);
+    if (!$detalheReq) {
+        echo json_encode(['success' => false, 'message' => 'Promoção não encontrada para esta unidade.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    echo json_encode(['success' => true, 'dados' => $detalheReq], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $labelsTipoTransacao = [
     'acumulo_selo' => ['Acúmulo de Selo/Progresso', '#0284c7', '#e0f2fe'],
     'resgate_recompensa' => ['Resgate de Recompensa', '#b45309', '#fef3c7'],
@@ -714,6 +731,139 @@ include 'includes/_head.php';
     html.dark-theme .crm-badge-wait {
         background: rgba(245, 158, 11, 0.18);
         color: #fcd34d;
+    }
+    tr.crm-promo-clickable {
+        cursor: pointer;
+        transition: background-color 0.15s ease;
+    }
+    tr.crm-promo-clickable:hover,
+    tr.crm-promo-clickable:focus {
+        background-color: rgba(26, 188, 156, 0.08) !important;
+        outline: none;
+    }
+    .crm-promo-inspect-hint {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #1abc9c;
+        margin-left: 6px;
+        opacity: 0.85;
+    }
+    tr.crm-promo-clickable:hover .crm-promo-inspect-hint {
+        opacity: 1;
+        text-decoration: underline;
+    }
+    .crm-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(2, 6, 23, 0.72);
+        backdrop-filter: blur(3px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 18px;
+        overflow-y: auto;
+    }
+    .crm-modal-backdrop.open {
+        display: flex;
+    }
+    .crm-modal-box {
+        background: var(--bg-widget);
+        color: var(--text-dark);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 1060px;
+        max-height: 92vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+    .crm-modal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--border-color);
+        background: var(--bg-main);
+    }
+    .crm-modal-close {
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-dark);
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 1rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .crm-modal-close:hover {
+        border-color: #ef4444;
+        color: #ef4444;
+    }
+    .crm-modal-body {
+        padding: 20px 22px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    .crm-modal-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+    .crm-modal-kpi {
+        background: var(--bg-main);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 12px 14px;
+    }
+    .crm-modal-kpi small {
+        display: block;
+        color: var(--text-muted);
+        font-size: 0.74rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .crm-modal-kpi strong {
+        font-size: 1.12rem;
+        color: var(--text-dark);
+    }
+    .crm-modal-grid {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 16px;
+        margin-bottom: 18px;
+    }
+    .crm-pay-row {
+        margin-bottom: 10px;
+    }
+    .crm-pay-bar-track {
+        width: 100%;
+        height: 7px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.22);
+        overflow: hidden;
+        margin-top: 4px;
+    }
+    .crm-pay-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #1abc9c, #3b82f6);
+    }
+    @media (max-width: 900px) {
+        .crm-modal-grid {
+            grid-template-columns: 1fr;
+        }
     }
     @media (max-width: 1120px) {
         .crm-charts-grid {
