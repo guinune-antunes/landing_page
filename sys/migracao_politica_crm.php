@@ -169,6 +169,27 @@ if (!function_exists('aplicarMigracaoPoliticaCrm')) {
         $logs[] = "[ok] backfill de item_alvo_tipo/recompensa_item_tipo";
         if ($verbose) echo "[ok] backfill de item_alvo_tipo/recompensa_item_tipo\n";
 
+        // 9. Índices de performance para operações CRM com alto volume (10k+ clientes/vendas)
+        $indices = [
+            ['clientes', 'idx_cli_inst_nome', '(`instituicao_id`, `nome_completo`)'],
+            ['fidelidade_transacoes', 'idx_fid_tx_cli', '(`cliente_id`, `data_transacao`)'],
+            ['promocao_usos', 'idx_promo_uso_cli', '(`cliente_id`, `promocao_id`)'],
+            ['vendas', 'idx_vendas_inst_data', '(`instituicao_id`, `data_venda`)'],
+        ];
+        $stIdxChk = $pdo->prepare("SELECT COUNT(*) FROM information_schema.STATISTICS
+                                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?");
+        foreach ($indices as [$tbl, $idxName, $colsSql]) {
+            $stIdxChk->execute([$tbl, $idxName]);
+            if ((int)$stIdxChk->fetchColumn() === 0) {
+                $pdo->exec("ALTER TABLE `{$tbl}` ADD INDEX `{$idxName}` {$colsSql}");
+                $msg = "[+] indice {$tbl}.{$idxName} criado";
+            } else {
+                $msg = "[ok] indice {$tbl}.{$idxName}";
+            }
+            $logs[] = $msg;
+            if ($verbose) echo $msg . "\n";
+        }
+
         return $logs;
     }
 }

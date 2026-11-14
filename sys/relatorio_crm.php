@@ -405,15 +405,29 @@ if ($cliente_id <= 0 || !$cliente) {
                                     COALESCE(cf.tier_atual, 'Bronze') AS tier_atual,
                                     COALESCE(cf.total_gasto_historico, 0) AS total_gasto_historico,
                                     cf.ultimo_acesso,
-                                    (SELECT COUNT(*) FROM cliente_progresso_regras cpr WHERE cpr.cliente_id = c.id AND cpr.instituicao_id = ? AND cpr.recompensa_disponivel = 1) AS premios_prontos,
-                                    (SELECT COALESCE(SUM(cpr.ciclos_completados), 0) FROM cliente_progresso_regras cpr WHERE cpr.cliente_id = c.id AND cpr.instituicao_id = ?) AS ciclos_modulares,
-                                    (SELECT COUNT(*) FROM promocao_usos pu WHERE pu.cliente_id = c.id AND pu.instituicao_id = ?) AS qtd_promos
+                                    COALESCE(agg_reg.premios_prontos, 0) AS premios_prontos,
+                                    COALESCE(agg_reg.ciclos_modulares, 0) AS ciclos_modulares,
+                                    COALESCE(agg_pu.qtd_promos, 0) AS qtd_promos
                              FROM clientes c
                              LEFT JOIN cliente_fidelidade cf ON cf.cliente_id = c.id AND cf.instituicao_id = ?
+                             LEFT JOIN (
+                                 SELECT cliente_id,
+                                        SUM(CASE WHEN recompensa_disponivel = 1 THEN 1 ELSE 0 END) AS premios_prontos,
+                                        SUM(ciclos_completados) AS ciclos_modulares
+                                 FROM cliente_progresso_regras
+                                 WHERE instituicao_id = ?
+                                 GROUP BY cliente_id
+                             ) agg_reg ON agg_reg.cliente_id = c.id
+                             LEFT JOIN (
+                                 SELECT cliente_id, COUNT(*) AS qtd_promos
+                                 FROM promocao_usos
+                                 WHERE instituicao_id = ?
+                                 GROUP BY cliente_id
+                             ) agg_pu ON agg_pu.cliente_id = c.id
                              WHERE c.instituicao_id IN ($in_cli)
                              ORDER BY premios_prontos DESC, COALESCE(cf.total_gasto_historico, 0) DESC, c.nome_completo ASC
                              LIMIT 40");
-    $stRank->execute([$id_loja_fid, $id_loja_fid, $id_loja, $id_loja_fid]);
+    $stRank->execute([$id_loja_fid, $id_loja_fid, $id_loja]);
     $rankingClientes = $stRank->fetchAll(PDO::FETCH_ASSOC);
 }
 

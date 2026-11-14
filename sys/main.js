@@ -92,7 +92,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!el._petcrmS2EventsBound) {
                 el._petcrmS2EventsBound = true;
-                $el.on('select2:select select2:clear select2:unselect', function() {
+                $el.on('select2:select select2:clear select2:unselect', function(e) {
+                    const data = e && e.params && e.params.data;
+                    if (e && e.type === 'select2:select' && data) {
+                        const selOpt = (el.options && el.selectedIndex >= 0) ? el.options[el.selectedIndex] : null;
+                        if (selOpt) {
+                            if (data.telefone !== undefined) selOpt.dataset.telefone = data.telefone || '';
+                            if (data.nome_completo !== undefined) selOpt.dataset.nome = data.nome_completo || '';
+                        }
+                    }
                     el.dispatchEvent(new Event('change', { bubbles: true }));
                     el.dispatchEvent(new Event('input', { bubbles: true }));
                 });
@@ -100,6 +108,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
             bindObserver(el);
             return $el;
+        }
+
+        function enhanceClienteAjax(elOrSelector, customOpts = {}) {
+            const el = resolveEl(elOrSelector);
+            if (!el || !hasJq) return null;
+            const opts = Object.assign({
+                _force: true,
+                allowClear: true,
+                minimumInputLength: 0,
+                placeholder: el.getAttribute('data-placeholder') || 'Buscar cliente por nome, WhatsApp ou pet...',
+                ajax: {
+                    url: 'api_busca_global.php',
+                    dataType: 'json',
+                    delay: 200,
+                    data: params => ({ tipo: 'clientes', q: params.term || '' }),
+                    processResults: data => ({ results: data.results || [] }),
+                    cache: true
+                }
+            }, customOpts);
+            return enhance(el, opts);
         }
 
         function sync(elOrSelector, newVal = undefined) {
@@ -175,7 +203,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        return { enhance, sync, initAll, initHeaderGlobalSearch };
+        return { enhance, enhanceClienteAjax, sync, initAll, initHeaderGlobalSearch };
     })();
 
     window.PetCrmSelect2 = PetCrmSelect2;
@@ -367,8 +395,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }
 
-        // Listener para troca de cliente
+        // Listener para troca de cliente + Select2 AJAX para bases com 10k+ cadastros
         if (clientSelect) {
+            PetCrmSelect2.enhanceClienteAjax(clientSelect, {
+                placeholder: 'Buscar tutor por nome, WhatsApp ou pet...',
+                allowClear: true
+            });
             clientSelect.addEventListener('change', function() {
                 carregarPets(this.value);
             });
@@ -1051,22 +1083,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const searchInput = document.getElementById('searchInput');
             if (searchInput) {
-                const tableRows = clientTableBody.getElementsByTagName('tr');
-                const filtrarClientesTabela = function() {
-                    const searchTerm = (searchInput.value || '').toLowerCase().trim();
-                    for (const row of tableRows) {
-                        const rowText = row.textContent.toLowerCase();
-                        row.style.display = (searchTerm === '' || rowText.includes(searchTerm)) ? "" : "none";
-                    }
-                };
-                searchInput.addEventListener('input', filtrarClientesTabela);
-                searchInput.addEventListener('change', filtrarClientesTabela);
-                if (searchInput.tagName === 'SELECT') {
-                    PetCrmSelect2.enhance(searchInput, {
-                        placeholder: 'Buscar cliente, telefone ou e-mail...',
+                if (searchInput.tagName === 'SELECT' && window.jQuery) {
+                    const $searchCli = PetCrmSelect2.enhanceClienteAjax(searchInput, {
+                        placeholder: 'Buscar cliente, WhatsApp, CPF ou pet...',
                         allowClear: true,
                         tags: true
                     });
+                    if ($searchCli) {
+                        $searchCli.on('select2:select', function(e) {
+                            const d = e.params && e.params.data;
+                            const termo = (d && (d.nome_completo || d.text || d.id)) ? String(d.nome_completo || d.text || d.id).trim() : '';
+                            window.location.href = termo !== '' ? ('clientes.php?busca=' + encodeURIComponent(termo)) : 'clientes.php';
+                        });
+                        $searchCli.on('select2:clear', function() {
+                            window.location.href = 'clientes.php';
+                        });
+                    }
+                } else {
+                    const tableRows = clientTableBody.getElementsByTagName('tr');
+                    const filtrarClientesTabela = function() {
+                        const searchTerm = (searchInput.value || '').toLowerCase().trim();
+                        for (const row of tableRows) {
+                            const rowText = row.textContent.toLowerCase();
+                            row.style.display = (searchTerm === '' || rowText.includes(searchTerm)) ? "" : "none";
+                        }
+                    };
+                    searchInput.addEventListener('input', filtrarClientesTabela);
+                    searchInput.addEventListener('change', filtrarClientesTabela);
                 }
             }
 
@@ -1388,11 +1431,15 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        // Atualiza WhatsApp e preview CRM automaticamente quando o operador troca o cliente no select
+        // Atualiza WhatsApp e preview CRM automaticamente quando o operador troca o cliente no select (com Select2 AJAX)
         if (pdvClienteSelect) {
+            PetCrmSelect2.enhanceClienteAjax(pdvClienteSelect, {
+                placeholder: 'Cliente Balcão (Digite nome, WhatsApp ou pet...)',
+                allowClear: true
+            });
             pdvClienteSelect.addEventListener('change', function() {
                 const opt = this.selectedOptions[0];
-                if (pdvFidWhatsapp && opt && opt.dataset.telefone) {
+                if (pdvFidWhatsapp && opt && opt.dataset.telefone !== undefined) {
                     pdvFidWhatsapp.value = opt.dataset.telefone;
                 }
                 agendarPreviewCrm();

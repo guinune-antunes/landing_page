@@ -23,13 +23,31 @@ if ($produto_selecionado > 0) {
     $prodPreload = $stmtPre->fetch(PDO::FETCH_ASSOC);
 }
 
-// Busca os clientes da loja (ou da rede se compartilhado) para o Select do PDV
+// Busca amostra inicial de clientes (para carregamento instantâneo mesmo com 10k+ cadastros; demais vêm via Select2 AJAX)
 $ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
 $in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
-$sql_clientes = "SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id IN ($in_cli) ORDER BY nome_completo ASC";
+$sql_clientes = "SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id IN ($in_cli) ORDER BY id DESC LIMIT 30";
 $stmt_clientes = $pdo->prepare($sql_clientes);
 $stmt_clientes->execute($ids_clientes);
 $clientes = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
+
+if ($cliente_selecionado > 0) {
+    $jaNaLista = false;
+    foreach ($clientes as $ce) {
+        if ((int)$ce['id'] === $cliente_selecionado) {
+            $jaNaLista = true;
+            break;
+        }
+    }
+    if (!$jaNaLista) {
+        $stSel = $pdo->prepare("SELECT id, nome_completo, telefone FROM clientes WHERE id = ? AND instituicao_id IN ($in_cli) LIMIT 1");
+        $stSel->execute(array_merge([$cliente_selecionado], $ids_clientes));
+        $rowSel = $stSel->fetch(PDO::FETCH_ASSOC);
+        if ($rowSel) {
+            array_unshift($clientes, $rowSel);
+        }
+    }
+}
 
 // =========================================================================
 // CORREÇÃO: A linha abaixo havia sido apagada acidentalmente!
@@ -166,7 +184,7 @@ $servicosCatalogo = $stServPdv->fetchAll(PDO::FETCH_ASSOC);
                             </button>
                         </div>
                         <div class="client-selector">
-                            <select id="pdv-cliente" data-s2-allow-clear="1" data-placeholder="Cliente Balcão (Anônimo)">
+                            <select id="pdv-cliente" data-no-auto-select2="1" data-s2-allow-clear="1" data-placeholder="Cliente Balcão (Digite nome, WhatsApp ou pet...)">
                                 <option value="" data-telefone="" data-nome="">Cliente Balcão (Anônimo)</option>
                                 <?php foreach ($clientes as $c): ?>
                                     <option value="<?php echo $c['id']; ?>" <?php echo ($cliente_selecionado == $c['id']) ? 'selected' : ''; ?> data-telefone="<?php echo htmlspecialchars($c['telefone'] ?? ''); ?>" data-nome="<?php echo htmlspecialchars($c['nome_completo']); ?>">

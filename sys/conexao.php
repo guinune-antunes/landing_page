@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('America/Sao_Paulo');
+
 // Configurações do Banco
 // Suporte a Docker / Produção via variáveis de ambiente com fallback para XAMPP local
 define('DB_HOST', getenv('DB_HOST') ?: 'localhost');

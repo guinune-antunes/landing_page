@@ -46,14 +46,6 @@ $hojeFim = $hojeYmd . ' 23:59:59';
 
 // --- 3. BUSCAS NO BANCO DE DADOS (FILTRADAS PELA LOJA) ---
 
-// Busca Clientes (inclui clientes da rede se compartilhado)
-require_once __DIR__ . '/includes/unidades.php';
-$ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
-$in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
-$stmt_clientes = $pdo->prepare("SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id IN ($in_cli) ORDER BY nome_completo");
-$stmt_clientes->execute($ids_clientes);
-$clientes = $stmt_clientes->fetchAll(PDO::FETCH_ASSOC);
-
 // Busca Profissionais
 $stmt_pro = $pdo->prepare("SELECT id, nome, cargo FROM usuarios WHERE instituicao_id = ? AND ativo = 1 AND cargo != 'Admin' ORDER BY nome");
 $stmt_pro->execute([$id_loja]);
@@ -96,6 +88,29 @@ $sql_ag = "SELECT a.*,
 $stmt_ag = $pdo->prepare($sql_ag);
 $stmt_ag->execute([$id_loja, $inicioSemana, $fimSemana]); 
 $agendamentos = $stmt_ag->fetchAll(PDO::FETCH_ASSOC);
+
+// Clientes iniciais (os da semana atual + 30 recentes; busca completa via Select2 AJAX)
+require_once __DIR__ . '/includes/unidades.php';
+$ids_clientes = obterInstituicoesClientes($pdo, (int)$id_loja);
+$in_cli = implode(',', array_fill(0, count($ids_clientes), '?'));
+$clientesSemanaIds = array_values(array_unique(array_filter(array_map(
+    static fn($agRow) => (int)($agRow['real_cliente_id'] ?? $agRow['cliente_id'] ?? 0),
+    $agendamentos
+))));
+$clientes = [];
+if (!empty($clientesSemanaIds)) {
+    $inSem = implode(',', array_fill(0, count($clientesSemanaIds), '?'));
+    $stCliSem = $pdo->prepare("SELECT id, nome_completo, telefone FROM clientes WHERE id IN ({$inSem}) AND instituicao_id IN ({$in_cli})");
+    $stCliSem->execute(array_merge($clientesSemanaIds, $ids_clientes));
+    $clientes = $stCliSem->fetchAll(PDO::FETCH_ASSOC);
+}
+$stmt_clientes = $pdo->prepare("SELECT id, nome_completo, telefone FROM clientes WHERE instituicao_id IN ($in_cli) ORDER BY id DESC LIMIT 30");
+$stmt_clientes->execute($ids_clientes);
+$clientesPorId = [];
+foreach (array_merge($clientes, $stmt_clientes->fetchAll(PDO::FETCH_ASSOC)) as $cliRow) {
+    $clientesPorId[(int)$cliRow['id']] = $cliRow;
+}
+$clientes = array_values($clientesPorId);
 
 // Distribuição por dia da semana
 $agendamentosPorDia = [1 => [], 2 => [], 3 => [], 4 => [], 5 => [], 6 => [], 7 => []];
@@ -668,7 +683,7 @@ include 'includes/_sidebar.php';
 
                 <div class="form-group">
                     <label for="app-client">Cliente / Tutor *</label>
-                    <select id="app-client" required style="width:100%;">
+                    <select id="app-client" data-no-auto-select2="1" data-placeholder="Buscar tutor por nome, WhatsApp ou pet..." required style="width:100%;">
                         <option value="">Selecione um cliente...</option>
                         <?php foreach ($clientes as $cliente): ?>
                             <option value="<?php echo $cliente['id']; ?>" data-tel="<?php echo htmlspecialchars($cliente['telefone'] ?? ''); ?>">
